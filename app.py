@@ -105,4 +105,4 @@ def api_simplify():
         return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
