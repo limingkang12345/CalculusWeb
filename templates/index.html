@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微积分计算器 v1.1</title>
+    <!-- MathJax CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 标签页头 -->
+        <div class="tabs">
+            <button class="tab-button active" data-tab="home">首页</button>
+            <button class="tab-button" data-tab="derivative">求导</button>
+            <button class="tab-button" data-tab="integral">积分</button>
+            <button class="tab-button" data-tab="simplify">变形</button>
+        </div>
+
+        <!-- 首页内容 -->
+        <div id="home" class="tab-content active">
+            <div class="welcome">
+                <h1>欢迎使用微积分计算器v1.1！</h1>
+                <p>Author: Li Mingkang</p>
+                <p>Contributor: CuberAHZ</p>
+            </div>
+        </div>
+
+        <!-- 求导标签页 -->
+        <div id="derivative" class="tab-content">
+            <div class="section">
+                <div class="group-box">
+                    <div class="group-title">输入表达式</div>
+                    <input type="text" id="derivative-expr" placeholder="例如: x**2 + sin(x)" value="x**2">
+                </div>
+                <div class="params-row">
+                    <div class="group-box small">
+                        <div class="group-title">自变量</div>
+                        <input type="text" id="derivative-var" value="x">
+                    </div>
+                    <div class="group-box small">
+                        <div class="group-title">因变量(仅隐函数)</div>
+                        <input type="text" id="derivative-yvar" value="y" disabled>
+                    </div>
+                    <div class="group-box small">
+                        <div class="group-title">求导次数</div>
+                        <input type="text" id="derivative-order" value="1">
+                    </div>
+                    <div class="group-box small">
+                        <div class="group-title">自变量值</div>
+                        <input type="text" id="derivative-xval" value="" disabled>
+                    </div>
+                </div>
+                <div class="checkbox-row">
+                    <label>
+                        <input type="checkbox" id="derivative-implicit"> 隐函数
+                    </label>
+                    <label>
+                        <input type="checkbox" id="derivative-specific"> 求出具体值
+                    </label>
+                </div>
+                <div class="group-box">
+                    <div class="group-title">原函数</div>
+                    <div id="derivative-original" class="math-output">\\(f(x)= \\)</div>
+                </div>
+                <div class="group-box">
+                    <div class="group-title">导函数</div>
+                    <div id="derivative-result" class="math-output">\\(f'(x)= \\)</div>
+                </div>
+                <div class="group-box">
+                    <div class="group-title">导数值</div>
+                    <div id="derivative-value" class="math-output"></div>
+                </div>
+                <button id="derivative-btn" class="action-btn">求导</button>
+            </div>
+        </div>
+
+        <!-- 积分标签页 -->
+        <div id="integral" class="tab-content">
+            <div class="section">
+                <div class="group-box">
+                    <div class="group-title">输入表达式</div>
+                    <input type="text" id="integral-expr" placeholder="例如: x**2" value="x**2">
+                </div>
+                <div class="params-row">
+                    <div class="group-box small">
+                        <div class="group-title">积分变量</div>
+                        <input type="text" id="integral-var" value="x">
+                    </div>
+                    <div class="group-box small">
+                        <div class="group-title">下限值</div>
+                        <input type="text" id="integral-lower" value="" disabled>
+                    </div>
+                    <div class="group-box small">
+                        <div class="group-title">上限值</div>
+                        <input type="text" id="integral-upper" value="" disabled>
+                    </div>
+                </div>
+                <div class="checkbox-row">
+                    <label>
+                        <input type="checkbox" id="integral-definite"> 定积分
+                    </label>
+                </div>
+                <div class="group-box">
+                    <div class="group-title">被积函数</div>
+                    <div id="integral-original" class="math-output">\\(f(x)= \\)</div>
+                </div>
+                <div class="group-box">
+                    <div class="group-title">原函数</div>
+                    <div id="integral-antiderivative" class="math-output">\\(F(x)= \\)</div>
+                </div>
+                <div class="group-box">
+                    <div class="group-title">定积分值</div>
+                    <div id="integral-definite-value" class="math-output"></div>
+                </div>
+                <button id="integral-btn" class="action-btn">积分</button>
+            </div>
+        </div>
+
+        <!-- 变形标签页 -->
+        <div id="simplify" class="tab-content">
+            <div class="section">
+                <div class="group-box">
+                    <div class="group-title">输入表达式</div>
+                    <input type="text" id="simplify-expr" placeholder="例如: (x+1)**2" value="(x+1)**2">
+                </div>
+                <div class="group-box">
+                    <div class="group-title">变形方法</div>
+                    <select id="simplify-method">
+                        <option value="0">通用变形(simplify)</option>
+                        <option value="1">展开(expand)</option>
+                        <option value="2">因式分解(factor)</option>
+                        <option value="3">主元(collect)</option>
+                        <option value="4">通分(cancel)</option>
+                        <option value="5">分离(apart)</option>
+                        <option value="6">三角变换(trigsimp)</option>
+                        <option value="7">三角展开(expand_trig)</option>
+                        <option value="8">指数合并(powsimp)</option>
+                        <option value="9">指数展开(expand_power_exp)</option>
+                        <option value="10">对数展开(expand_log)</option>
+                        <option value="11">对数合并(logcombine)</option>
+                    </select>
+                </div>
+                <div class="group-box">
+                    <div class="group-title">原式</div>
+                    <div id="simplify-original" class="math-output">\\( \\)</div>
+                </div>
+                <div class="group-box">
+                    <div class="group-title">变形式</div>
+                    <div id="simplify-result" class="math-output">\\( \\)</div>
+                    <input type="text" id="simplify-result-text" readonly placeholder="变形结果字符串形式">
+                </div>
+                <button id="simplify-btn" class="action-btn">变形</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/script.js"></script>
+</body>
+</html>
