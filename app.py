@@ -2,7 +2,8 @@ from flask import Flask, render_template, request, jsonify
 from derivative import derivative, yinhanshu_derivative
 from integral import integral
 from simplification import simplifies
-from sympy import sympify, latex
+from solvers import solve_fangcheng, solve_budengshi
+from sympy import sympify, latex, Eq, Rel
 
 app = Flask(__name__)
 
@@ -87,10 +88,13 @@ def api_integral():
 def api_simplify():
     data = request.get_json()
     expr = data.get('expr', '')
-    method_index = data.get('method_index', 0)  # 对应原Qt ComboBox的currentIndex
+    method_index = data.get('method_index', 0)
+    zhuyuan = data.get('zhuyuan', None)
+    huanyuan = data.get('huanyuan', None)
+    huanyuanshi = data.get('huanyuanshi', None)
 
     try:
-        result_expr = simplifies(expr, method_index)
+        result_expr = simplifies(expr, method_index, zhuyuan, huanyuan, huanyuanshi)
         result_latex = latex(result_expr)
         result_str = str(result_expr)
         original_latex = latex(sympify(expr))
@@ -104,5 +108,58 @@ def api_simplify():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+# ---------- 方程求解 API ----------
+@app.route('/api/equation', methods=['POST'])
+def api_equation():
+    data = request.get_json()
+    lhs = data.get('lhs', '')
+    rhs = data.get('rhs', '0')
+    var = data.get('var', 'x')
+    domain = data.get('domain', 'Reals')
+
+    try:
+        eq = Eq(sympify(lhs), sympify(rhs))
+        solution = solve_fangcheng(eq, var, domain)
+        solution_latex = latex(solution)
+        solution_str = str(solution)
+        # 原方程带域显示
+        original_latex = latex(eq) + f'\\quad (x\\in {latex(sympify(domain))})'
+
+        return jsonify({
+            'success': True,
+            'original': original_latex,
+            'solution': solution_latex,
+            'solution_str': solution_str
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+# ---------- 不等式求解 API ----------
+@app.route('/api/inequality', methods=['POST'])
+def api_inequality():
+    data = request.get_json()
+    lhs = data.get('lhs', '')
+    rhs = data.get('rhs', '0')
+    rel = data.get('rel', '!=')  # 不等号
+    var = data.get('var', 'x')
+    domain = data.get('domain', 'Reals')
+
+    try:
+        # 构造 Relational
+        relation = Rel(sympify(lhs), sympify(rhs), rel)
+        solution = solve_budengshi(relation, var, domain)
+        solution_latex = latex(solution)
+        solution_str = str(solution)
+        original_latex = latex(relation) + f'\\quad (x\\in {latex(sympify(domain))})'
+
+        return jsonify({
+            'success': True,
+            'original': original_latex,
+            'solution': solution_latex,
+            'solution_str': solution_str
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=False)   # 生产环境务必关闭debug

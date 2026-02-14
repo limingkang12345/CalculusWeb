@@ -22,12 +22,13 @@ body {
 
 .tabs {
     display: flex;
+    flex-wrap: wrap;
     border-bottom: 1px solid #ccc;
     margin-bottom: 20px;
 }
 
 .tab-button {
-    padding: 8px 20px;
+    padding: 8px 16px;
     border: none;
     background: none;
     cursor: pointer;
@@ -118,7 +119,7 @@ input[type="text"], select {
     background: #005a9e;
 }
 
-#simplify-result-text {
+#simplify-result-text, #equation-solution-text, #inequality-solution-text {
     margin-top: 10px;
     background: #eee;
 }
