@@ -3,7 +3,8 @@ from derivative import derivative, yinhanshu_derivative
 from integral import integral
 from simplification import simplifies
 from solvers import solve_fangcheng, solve_budengshi
-from sympy import sympify, latex, Eq, Rel
+from functions import get_function_attr
+from sympy import sympify, latex, Eq, Rel, symbols
 
 app = Flask(__name__)
 
@@ -12,7 +13,7 @@ app = Flask(__name__)
 def index():
     return render_template('index.html')
 
-# ---------- 求导 API ----------
+# ---------- 求导 API (同前) ----------
 @app.route('/api/derivative', methods=['POST'])
 def api_derivative():
     data = request.get_json()
@@ -26,15 +27,13 @@ def api_derivative():
 
     try:
         if is_implicit:
-            # 隐函数求导
             if is_specific and x_val:
                 result_deriv = yinhanshu_derivative(expr, var, y_var, order, x_val)
-                result_value = yinhanshu_derivative(expr, var, y_var, order, x_val)  # 隐函数具体值
+                result_value = yinhanshu_derivative(expr, var, y_var, order, x_val)
             else:
                 result_deriv = yinhanshu_derivative(expr, var, y_var, order, None)
                 result_value = None
         else:
-            # 显函数求导
             if is_specific and x_val:
                 result_deriv = derivative(expr, var, order, None)
                 result_value = derivative(expr, var, order, x_val)
@@ -42,19 +41,19 @@ def api_derivative():
                 result_deriv = derivative(expr, var, order, None)
                 result_value = None
 
-        # 原函数LaTeX（用于输入框实时显示）
         original_latex = latex(sympify(expr))
-
         return jsonify({
             'success': True,
             'original': original_latex,
-            'derivative': result_deriv,
-            'derivative_value': result_value
+            'derivative': latex(result_deriv) if result_deriv is not None else '',
+            'derivative_value': latex(result_value) if result_value is not None else '',
+            'derivative_str': str(result_deriv) if result_deriv is not None else '',
+            'derivative_value_str': str(result_value) if result_value is not None else ''
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-# ---------- 积分 API ----------
+# ---------- 积分 API (同前) ----------
 @app.route('/api/integral', methods=['POST'])
 def api_integral():
     data = request.get_json()
@@ -67,23 +66,24 @@ def api_integral():
     try:
         if is_definite and lower and upper:
             result_integral = integral(expr, var, lower, upper)
-            result_antiderivative = integral(expr, var)  # 原函数（不定积分）
+            result_antiderivative = integral(expr, var)
         else:
             result_integral = None
             result_antiderivative = integral(expr, var)
 
         original_latex = latex(sympify(expr))
-
         return jsonify({
             'success': True,
             'original': original_latex,
-            'antiderivative': result_antiderivative,
-            'definite_value': result_integral
+            'antiderivative': latex(result_antiderivative) if result_antiderivative is not None else '',
+            'definite_value': latex(result_integral) if result_integral is not None else '',
+            'antiderivative_str': str(result_antiderivative) if result_antiderivative is not None else '',
+            'definite_value_str': str(result_integral) if result_integral is not None else ''
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-# ---------- 变形 API ----------
+# ---------- 变形 API (同前) ----------
 @app.route('/api/simplify', methods=['POST'])
 def api_simplify():
     data = request.get_json()
@@ -95,20 +95,17 @@ def api_simplify():
 
     try:
         result_expr = simplifies(expr, method_index, zhuyuan, huanyuan, huanyuanshi)
-        result_latex = latex(result_expr)
-        result_str = str(result_expr)
         original_latex = latex(sympify(expr))
-
         return jsonify({
             'success': True,
             'original': original_latex,
-            'simplified': result_latex,
-            'simplified_str': result_str
+            'simplified': latex(result_expr) if result_expr is not None else '',
+            'simplified_str': str(result_expr) if result_expr is not None else ''
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-# ---------- 方程求解 API ----------
+# ---------- 方程求解 API (同前) ----------
 @app.route('/api/equation', methods=['POST'])
 def api_equation():
     data = request.get_json()
@@ -120,46 +117,90 @@ def api_equation():
     try:
         eq = Eq(sympify(lhs), sympify(rhs))
         solution = solve_fangcheng(eq, var, domain)
-        solution_latex = latex(solution)
-        solution_str = str(solution)
-        # 原方程带域显示
         original_latex = latex(eq) + f'\\quad (x\\in {latex(sympify(domain))})'
-
         return jsonify({
             'success': True,
             'original': original_latex,
-            'solution': solution_latex,
-            'solution_str': solution_str
+            'solution': latex(solution) if solution is not None else '',
+            'solution_str': str(solution) if solution is not None else ''
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-# ---------- 不等式求解 API ----------
+# ---------- 不等式求解 API (同前) ----------
 @app.route('/api/inequality', methods=['POST'])
 def api_inequality():
     data = request.get_json()
     lhs = data.get('lhs', '')
     rhs = data.get('rhs', '0')
-    rel = data.get('rel', '!=')  # 不等号
+    rel = data.get('rel', '!=')
     var = data.get('var', 'x')
     domain = data.get('domain', 'Reals')
 
     try:
-        # 构造 Relational
         relation = Rel(sympify(lhs), sympify(rhs), rel)
         solution = solve_budengshi(relation, var, domain)
-        solution_latex = latex(solution)
-        solution_str = str(solution)
         original_latex = latex(relation) + f'\\quad (x\\in {latex(sympify(domain))})'
-
         return jsonify({
             'success': True,
             'original': original_latex,
-            'solution': solution_latex,
-            'solution_str': solution_str
+            'solution': latex(solution) if solution is not None else '',
+            'solution_str': str(solution) if solution is not None else ''
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+# ========== 新增：函数属性 & 求值 API ==========
+@app.route('/api/function', methods=['POST'])
+def api_function():
+    data = request.get_json()
+    action = data.get('action')  # 'get_attr' 或 'evaluate'
+
+    if action == 'get_attr':
+        # 获取函数属性
+        expr = data.get('expr', '')
+        var = data.get('var', 'x')
+        domain = data.get('domain', 'Reals')
+        attr_index = data.get('attr_index', 0)  # 0~7
+
+        try:
+            # get_function_attr 返回 sympy 对象
+            result = get_function_attr(expr, var, domain, attr_index)
+            if attr_index == 0:
+                # 特殊处理：返回 (函数表达式, 定义域) 的元组
+                # result 是 (expr_sym, domain_sym)
+                expr_sym, domain_sym = result
+                result_latex = latex(expr_sym) + f'\\quad ({var}\\in {latex(domain_sym)})'
+                result_str = str(expr_sym)
+            else:
+                result_latex = latex(result)
+                result_str = str(result)
+            return jsonify({
+                'success': True,
+                'latex': result_latex,
+                'str': result_str
+            })
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)})
+
+    elif action == 'evaluate':
+        # 求函数值
+        expr = data.get('expr', '')
+        var = data.get('var', 'x')
+        val = data.get('val', '0')
+        try:
+            f = sympify(expr)
+            value = f.subs(symbols(var), sympify(val))
+            return jsonify({
+                'success': True,
+                'latex': latex(value),
+                'str': str(value)
+            })
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)})
+
+    else:
+        return jsonify({'success': False, 'error': '未知动作'})
 
 if __name__ == '__main__':
     app.run(debug=False)   # 生产环境务必关闭debug

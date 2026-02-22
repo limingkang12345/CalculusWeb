@@ -19,6 +19,209 @@ document.addEventListener('DOMContentLoaded', function() {
         if (window.MathJax) MathJax.Hub.Queue(['Typeset', MathJax.Hub]);
     }
 
+    // ========== 定义标签页 ==========
+    // 存储函数数据，模拟 Qt 的 self.fs
+    let functions = {};  // key: 函数名，value: {name, expr, domain, var}
+
+    // 左侧列表元素
+    const funcList = document.getElementById('function-list');
+    // 编辑区输入框
+    const funcName = document.getElementById('func-name');
+    const funcExpr = document.getElementById('func-expr');
+    const funcDomain = document.getElementById('func-domain');
+    const funcVar = document.getElementById('func-var');
+    // 属性区
+    const attrSelect = document.getElementById('func-attr-select');
+    const attrStr = document.getElementById('func-attr-str');
+    const attrView = document.getElementById('func-attr-view');
+    // 求值区
+    const evalVal = document.getElementById('func-eval-val');
+    const evalStr = document.getElementById('func-eval-str');
+    const evalView = document.getElementById('func-eval-view');
+    // 按钮
+    const saveBtn = document.getElementById('func-save');
+    const deleteBtn = document.getElementById('func-delete');
+    const evalBtn = document.getElementById('func-eval-btn');
+
+    // 刷新左侧列表
+    function refreshFunctionList() {
+        funcList.innerHTML = '';
+        for (let key in functions) {
+            let li = document.createElement('li');
+            li.textContent = `${key}(${functions[key].var})`;
+            li.dataset.name = key;
+            li.addEventListener('click', function() {
+                // 取消其他选中
+                document.querySelectorAll('#function-list li').forEach(li => li.classList.remove('selected'));
+                this.classList.add('selected');
+                // 加载函数到编辑区
+                let f = functions[this.dataset.name];
+                funcName.value = f.name;
+                funcExpr.value = f.expr;
+                funcDomain.value = f.domain;
+                funcVar.value = f.var;
+                // 自动更新属性（切换到索引0）
+                attrSelect.value = '0';
+                updateFunctionAttr(0);
+                // 更新求值显示
+                updateFunctionEval();
+            });
+            funcList.appendChild(li);
+        }
+    }
+
+    // 根据当前编辑区内容更新函数属性显示
+    function updateFunctionAttr(attrIndex) {
+        let expr = funcExpr.value;
+        let var_ = funcVar.value;
+        let domain = funcDomain.value;
+        if (!expr) return;
+
+        fetch('/api/function', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                action: 'get_attr',
+                expr: expr,
+                var: var_,
+                domain: domain,
+                attr_index: attrIndex
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                attrView.innerHTML = `\\(${data.latex}\\)`;
+                attrStr.value = data.str;
+                renderMath();
+            } else {
+                attrView.innerHTML = '';
+                attrStr.value = '错误：' + data.error;
+            }
+        })
+        .catch(err => {
+            attrView.innerHTML = '';
+            attrStr.value = '请求失败';
+        });
+    }
+
+    // 根据当前编辑区内容更新函数求值显示
+    function updateFunctionEval() {
+        let expr = funcExpr.value;
+        let var_ = funcVar.value;
+        let val = evalVal.value;
+        if (!expr || !val) return;
+
+        fetch('/api/function', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                action: 'evaluate',
+                expr: expr,
+                var: var_,
+                val: val
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                evalView.innerHTML = `\\(${data.latex}\\)`;
+                evalStr.value = data.str;
+                renderMath();
+            } else {
+                evalView.innerHTML = '';
+                evalStr.value = '错误：' + data.error;
+            }
+        })
+        .catch(err => {
+            evalView.innerHTML = '';
+            evalStr.value = '请求失败';
+        });
+    }
+
+    // 保存函数
+    saveBtn.addEventListener('click', function() {
+        let name = funcName.value.trim();
+        if (!name) {
+            alert('函数名称不能为空');
+            return;
+        }
+        functions[name] = {
+            name: name,
+            expr: funcExpr.value,
+            domain: funcDomain.value,
+            var: funcVar.value
+        };
+        refreshFunctionList();
+        // 选中刚保存的项
+        let items = document.querySelectorAll('#function-list li');
+        for (let li of items) {
+            if (li.dataset.name === name) {
+                li.classList.add('selected');
+                break;
+            }
+        }
+        // 刷新属性
+        attrSelect.value = '0';
+        updateFunctionAttr(0);
+        updateFunctionEval();
+    });
+
+    // 删除函数
+    deleteBtn.addEventListener('click', function() {
+        let name = funcName.value.trim();
+        if (!name || !functions[name]) return;
+        delete functions[name];
+        refreshFunctionList();
+        // 清空编辑区
+        funcName.value = 'f';
+        funcExpr.value = 'x**2';
+        funcDomain.value = 'Reals';
+        funcVar.value = 'x';
+        // 清空属性显示
+        attrView.innerHTML = '';
+        attrStr.value = '';
+        evalView.innerHTML = '';
+        evalStr.value = '';
+    });
+
+    // 属性选择变化
+    attrSelect.addEventListener('change', function() {
+        let idx = parseInt(this.value, 10);
+        updateFunctionAttr(idx);
+    });
+
+    // 求值按钮
+    evalBtn.addEventListener('click', function() {
+        updateFunctionEval();
+    });
+
+    // 当编辑区内容变化时，自动更新属性（索引保持当前选择）
+    funcExpr.addEventListener('input', function() {
+        let idx = parseInt(attrSelect.value, 10);
+        updateFunctionAttr(idx);
+    });
+    funcDomain.addEventListener('input', function() {
+        let idx = parseInt(attrSelect.value, 10);
+        updateFunctionAttr(idx);
+    });
+    funcVar.addEventListener('input', function() {
+        let idx = parseInt(attrSelect.value, 10);
+        updateFunctionAttr(idx);
+    });
+
+    // 当自变量值变化时，自动重新求值（可选）
+    evalVal.addEventListener('input', function() {
+        updateFunctionEval();
+    });
+
+    // 初始化：添加一个默认函数方便演示
+    functions['f'] = { name: 'f', expr: 'x**2', domain: 'Reals', var: 'x' };
+    refreshFunctionList();
+    // 选中第一个
+    let firstLi = document.querySelector('#function-list li');
+    if (firstLi) firstLi.click();
+
     // ---------- 求导页面 ----------
     const implicitCheckbox = document.getElementById('derivative-implicit');
     const specificCheckbox = document.getElementById('derivative-specific');

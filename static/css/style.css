@@ -119,7 +119,25 @@ input[type="text"], select {
     background: #005a9e;
 }
 
-#simplify-result-text, #equation-solution-text, #inequality-solution-text {
-    margin-top: 10px;
+#simplify-result-text, #equation-solution-text, #inequality-solution-text, #func-attr-str, #func-eval-str {
+    margin-top: 0;
     background: #eee;
+}
+
+#function-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+#function-list li {
+    padding: 5px 8px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+#function-list li:hover {
+    background-color: #e0e0e0;
+}
+#function-list li.selected {
+    background-color: #0078d7;
+    color: white;
 }
