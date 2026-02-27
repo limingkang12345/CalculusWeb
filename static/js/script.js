@@ -1,5 +1,29 @@
+// static/js/script.js
 document.addEventListener('DOMContentLoaded', function() {
-    // ---------- 标签页切换 ----------
+    // ========== 全局变量 ==========
+    // 定义页存储的函数字典，格式：{ 函数名: [名称, 表达式, 定义域, 自变量] }
+    let functions = {};
+
+    // 方程组存储，格式：{ "等式字符串": [左表达式, 右表达式] }
+    let equations = {};
+
+    // 不等式组存储，格式：{ "不等式字符串": [左表达式, 右表达式, 关系符] }
+    let inequalities = {};
+
+    // ========== 工具函数 ==========
+    // 获取当前函数字典，用于API请求
+    function getFs() {
+        return functions;
+    }
+
+    // 重新渲染 MathJax
+    function renderMath() {
+        if (window.MathJax) {
+            MathJax.Hub.Queue(['Typeset', MathJax.Hub]);
+        }
+    }
+
+    // ========== 标签页切换 ==========
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
 
@@ -10,67 +34,51 @@ document.addEventListener('DOMContentLoaded', function() {
             this.classList.add('active');
             tabContents.forEach(c => c.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            if (window.MathJax) MathJax.Hub.Queue(['Typeset', MathJax.Hub]);
+            renderMath();
         });
     });
 
-    // 公共渲染函数
-    function renderMath() {
-        if (window.MathJax) MathJax.Hub.Queue(['Typeset', MathJax.Hub]);
-    }
-
-    // ========== 定义标签页 ==========
-    // 存储函数数据，模拟 Qt 的 self.fs
-    let functions = {};  // key: 函数名，value: {name, expr, domain, var}
-
-    // 左侧列表元素
+    // ========== 定义页 ==========
+    // 定义页元素
     const funcList = document.getElementById('function-list');
-    // 编辑区输入框
     const funcName = document.getElementById('func-name');
     const funcExpr = document.getElementById('func-expr');
     const funcDomain = document.getElementById('func-domain');
     const funcVar = document.getElementById('func-var');
-    // 属性区
     const attrSelect = document.getElementById('func-attr-select');
     const attrStr = document.getElementById('func-attr-str');
     const attrView = document.getElementById('func-attr-view');
-    // 求值区
     const evalVal = document.getElementById('func-eval-val');
     const evalStr = document.getElementById('func-eval-str');
     const evalView = document.getElementById('func-eval-view');
-    // 按钮
     const saveBtn = document.getElementById('func-save');
     const deleteBtn = document.getElementById('func-delete');
     const evalBtn = document.getElementById('func-eval-btn');
 
-    // 刷新左侧列表
+    // 刷新左侧函数列表
     function refreshFunctionList() {
         funcList.innerHTML = '';
         for (let key in functions) {
             let li = document.createElement('li');
-            li.textContent = `${key}(${functions[key].var})`;
+            li.textContent = `${key}(${functions[key][3]})`;  // 显示 f(x)
             li.dataset.name = key;
             li.addEventListener('click', function() {
-                // 取消其他选中
                 document.querySelectorAll('#function-list li').forEach(li => li.classList.remove('selected'));
                 this.classList.add('selected');
-                // 加载函数到编辑区
                 let f = functions[this.dataset.name];
-                funcName.value = f.name;
-                funcExpr.value = f.expr;
-                funcDomain.value = f.domain;
-                funcVar.value = f.var;
-                // 自动更新属性（切换到索引0）
+                funcName.value = f[0];
+                funcExpr.value = f[1];
+                funcDomain.value = f[2];
+                funcVar.value = f[3];
                 attrSelect.value = '0';
                 updateFunctionAttr(0);
-                // 更新求值显示
                 updateFunctionEval();
             });
             funcList.appendChild(li);
         }
     }
 
-    // 根据当前编辑区内容更新函数属性显示
+    // 更新函数属性显示
     function updateFunctionAttr(attrIndex) {
         let expr = funcExpr.value;
         let var_ = funcVar.value;
@@ -79,13 +87,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         fetch('/api/function', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 action: 'get_attr',
                 expr: expr,
                 var: var_,
                 domain: domain,
-                attr_index: attrIndex
+                attr_index: attrIndex,
+                fs: getFs()
             })
         })
         .then(res => res.json())
@@ -105,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 根据当前编辑区内容更新函数求值显示
+    // 更新函数求值显示
     function updateFunctionEval() {
         let expr = funcExpr.value;
         let var_ = funcVar.value;
@@ -114,12 +123,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         fetch('/api/function', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 action: 'evaluate',
                 expr: expr,
                 var: var_,
-                val: val
+                val: val,
+                fs: getFs()
             })
         })
         .then(res => res.json())
@@ -146,12 +156,7 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('函数名称不能为空');
             return;
         }
-        functions[name] = {
-            name: name,
-            expr: funcExpr.value,
-            domain: funcDomain.value,
-            var: funcVar.value
-        };
+        functions[name] = [name, funcExpr.value, funcDomain.value, funcVar.value];
         refreshFunctionList();
         // 选中刚保存的项
         let items = document.querySelectorAll('#function-list li');
@@ -161,7 +166,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 break;
             }
         }
-        // 刷新属性
         attrSelect.value = '0';
         updateFunctionAttr(0);
         updateFunctionEval();
@@ -178,7 +182,6 @@ document.addEventListener('DOMContentLoaded', function() {
         funcExpr.value = 'x**2';
         funcDomain.value = 'Reals';
         funcVar.value = 'x';
-        // 清空属性显示
         attrView.innerHTML = '';
         attrStr.value = '';
         evalView.innerHTML = '';
@@ -196,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateFunctionEval();
     });
 
-    // 当编辑区内容变化时，自动更新属性（索引保持当前选择）
+    // 编辑区变化时自动更新属性（保持当前选择）
     funcExpr.addEventListener('input', function() {
         let idx = parseInt(attrSelect.value, 10);
         updateFunctionAttr(idx);
@@ -209,79 +212,89 @@ document.addEventListener('DOMContentLoaded', function() {
         let idx = parseInt(attrSelect.value, 10);
         updateFunctionAttr(idx);
     });
-
-    // 当自变量值变化时，自动重新求值（可选）
     evalVal.addEventListener('input', function() {
         updateFunctionEval();
     });
 
-    // 初始化：添加一个默认函数方便演示
-    functions['f'] = { name: 'f', expr: 'x**2', domain: 'Reals', var: 'x' };
+    // 初始化一个默认函数
+    functions['f'] = ['f', 'x**2', 'Reals', 'x'];
     refreshFunctionList();
     // 选中第一个
     let firstLi = document.querySelector('#function-list li');
     if (firstLi) firstLi.click();
 
-    // ---------- 求导页面 ----------
-    const implicitCheckbox = document.getElementById('derivative-implicit');
-    const specificCheckbox = document.getElementById('derivative-specific');
-    const yvarInput = document.getElementById('derivative-yvar');
-    const xvalInput = document.getElementById('derivative-xval');
+    // ========== 求导页 ==========
+    const derivExpr = document.getElementById('derivative-expr');
+    const derivVar = document.getElementById('derivative-var');
+    const derivOrder = document.getElementById('derivative-order');
+    const derivImplicit = document.getElementById('derivative-implicit');
+    const derivYVar = document.getElementById('derivative-yvar');
+    const derivSpecific = document.getElementById('derivative-specific');
+    const derivXVal = document.getElementById('derivative-xval');
+    const derivBtn = document.getElementById('derivative-btn');
+    const derivOriginal = document.getElementById('derivative-original');
+    const derivResult = document.getElementById('derivative-result');
+    const derivValue = document.getElementById('derivative-value');
 
-    implicitCheckbox.addEventListener('change', function() {
-        yvarInput.disabled = !this.checked;
-        if (!this.checked) specificCheckbox.checked = false;
+    derivImplicit.addEventListener('change', function() {
+        derivYVar.disabled = !this.checked;
+        if (!this.checked) derivSpecific.checked = false;
     });
-    specificCheckbox.addEventListener('change', function() {
-        xvalInput.disabled = !this.checked;
+    derivSpecific.addEventListener('change', function() {
+        derivXVal.disabled = !this.checked;
     });
 
-    const derivExprInput = document.getElementById('derivative-expr');
-    derivExprInput.addEventListener('input', function() {
-        const expr = this.value;
+    // 实时显示原函数
+    derivExpr.addEventListener('input', function() {
+        let expr = this.value;
         if (!expr) return;
         fetch('/api/derivative', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ expr: expr, var: 'x', order: '1' })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ expr: expr, var: 'x', order: '1', fs: getFs() })
         })
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                document.getElementById('derivative-original').innerHTML = `\\(f(x)=${data.original}\\)`;
+                derivOriginal.innerHTML = `\\(f(x)=${data.original}\\)`;
                 renderMath();
             }
         })
         .catch(() => {});
     });
 
-    document.getElementById('derivative-btn').addEventListener('click', function() {
-        const expr = derivExprInput.value;
-        const var_ = document.getElementById('derivative-var').value;
-        const order = document.getElementById('derivative-order').value;
-        const isImplicit = implicitCheckbox.checked;
-        const yVar = yvarInput.value || 'y';
-        const isSpecific = specificCheckbox.checked;
-        const xVal = xvalInput.value;
+    derivBtn.addEventListener('click', function() {
+        let expr = derivExpr.value;
+        let var_ = derivVar.value;
+        let order = derivOrder.value;
+        let isImplicit = derivImplicit.checked;
+        let yVar = derivYVar.value || 'y';
+        let isSpecific = derivSpecific.checked;
+        let xVal = derivXVal.value;
 
         fetch('/api/derivative', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                expr, var: var_, order, is_implicit: isImplicit, y_var: yVar,
-                is_specific: isSpecific, x_val: isSpecific ? xVal : null
+                expr: expr,
+                var: var_,
+                order: order,
+                is_implicit: isImplicit,
+                y_var: yVar,
+                is_specific: isSpecific,
+                x_val: isSpecific ? xVal : null,
+                fs: getFs()
             })
         })
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                document.getElementById('derivative-original').innerHTML = `\\(f(x)=${data.original}\\)`;
-                document.getElementById('derivative-result').innerHTML = `\\(f'(x)=${data.derivative}\\)`;
-                const valDiv = document.getElementById('derivative-value');
+                derivOriginal.innerHTML = `\\(f(x)=${data.original}\\)`;
+                derivResult.innerHTML = `\\(f'(x)=${data.derivative}\\)`;
                 if (data.derivative_value) {
-                    valDiv.innerHTML = `\\(f'(${xVal})=${data.derivative_value}\\)`;
+                    derivValue.innerHTML = `\\(f'(${xVal})=${data.derivative_value}\\)`;
                 } else {
-                    valDiv.innerHTML = '';
+                    derivValue.innerHTML = '';
                 }
                 renderMath();
             } else {
@@ -290,63 +303,70 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(err => alert('网络错误：' + err));
     });
-    if (derivExprInput.value) derivExprInput.dispatchEvent(new Event('input'));
+    if (derivExpr.value) derivExpr.dispatchEvent(new Event('input'));
 
-    // ---------- 积分页面 ----------
-    const definiteCheckbox = document.getElementById('integral-definite');
-    const lowerInput = document.getElementById('integral-lower');
-    const upperInput = document.getElementById('integral-upper');
+    // ========== 积分页 ==========
+    const integralExpr = document.getElementById('integral-expr');
+    const integralVar = document.getElementById('integral-var');
+    const integralDefinite = document.getElementById('integral-definite');
+    const integralLower = document.getElementById('integral-lower');
+    const integralUpper = document.getElementById('integral-upper');
+    const integralBtn = document.getElementById('integral-btn');
+    const integralOriginal = document.getElementById('integral-original');
+    const integralAntiderivative = document.getElementById('integral-antiderivative');
+    const integralDefiniteValue = document.getElementById('integral-definite-value');
 
-    definiteCheckbox.addEventListener('change', function() {
-        lowerInput.disabled = !this.checked;
-        upperInput.disabled = !this.checked;
+    integralDefinite.addEventListener('change', function() {
+        integralLower.disabled = !this.checked;
+        integralUpper.disabled = !this.checked;
     });
 
-    const integralExprInput = document.getElementById('integral-expr');
-    integralExprInput.addEventListener('input', function() {
-        const expr = this.value;
+    integralExpr.addEventListener('input', function() {
+        let expr = this.value;
         if (!expr) return;
         fetch('/api/integral', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ expr: expr, var: 'x' })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ expr: expr, var: 'x', fs: getFs() })
         })
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                document.getElementById('integral-original').innerHTML = `\\(f(x)=${data.original}\\)`;
+                integralOriginal.innerHTML = `\\(f(x)=${data.original}\\)`;
                 renderMath();
             }
         })
         .catch(() => {});
     });
 
-    document.getElementById('integral-btn').addEventListener('click', function() {
-        const expr = integralExprInput.value;
-        const var_ = document.getElementById('integral-var').value;
-        const isDefinite = definiteCheckbox.checked;
-        const lower = lowerInput.value;
-        const upper = upperInput.value;
+    integralBtn.addEventListener('click', function() {
+        let expr = integralExpr.value;
+        let var_ = integralVar.value;
+        let isDefinite = integralDefinite.checked;
+        let lower = integralLower.value;
+        let upper = integralUpper.value;
 
         fetch('/api/integral', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                expr, var: var_, is_definite: isDefinite,
+                expr: expr,
+                var: var_,
+                is_definite: isDefinite,
                 lower: isDefinite ? lower : null,
-                upper: isDefinite ? upper : null
+                upper: isDefinite ? upper : null,
+                fs: getFs()
             })
         })
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                document.getElementById('integral-original').innerHTML = `\\(f(x)=${data.original}\\)`;
-                document.getElementById('integral-antiderivative').innerHTML = `\\(F(x)=${data.antiderivative}\\)`;
-                const defDiv = document.getElementById('integral-definite-value');
+                integralOriginal.innerHTML = `\\(f(x)=${data.original}\\)`;
+                integralAntiderivative.innerHTML = `\\(F(x)=${data.antiderivative}\\)`;
                 if (data.definite_value) {
-                    defDiv.innerHTML = `\\(\\int_{${lower}}^{${upper}} f(x)dx = ${data.definite_value}\\)`;
+                    integralDefiniteValue.innerHTML = `\\(\\int_{${lower}}^{${upper}} f(x)dx = ${data.definite_value}\\)`;
                 } else {
-                    defDiv.innerHTML = '';
+                    integralDefiniteValue.innerHTML = '';
                 }
                 renderMath();
             } else {
@@ -355,80 +375,81 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(err => alert('网络错误：' + err));
     });
-    if (integralExprInput.value) integralExprInput.dispatchEvent(new Event('input'));
+    if (integralExpr.value) integralExpr.dispatchEvent(new Event('input'));
 
-    // ---------- 变形页面（新增选项控制）----------
+    // ========== 变形页 ==========
+    const simplifyExpr = document.getElementById('simplify-expr');
     const simplifyMethod = document.getElementById('simplify-method');
-    const zhuyuanInput = document.getElementById('simplify-zhuyuan');
-    const huanyuanInput = document.getElementById('simplify-huanyuan');
-    const huanyuanshiInput = document.getElementById('simplify-huanyuanshi');
+    const simplifyZhuyuan = document.getElementById('simplify-zhuyuan');
+    const simplifyHuanyuan = document.getElementById('simplify-huanyuan');
+    const simplifyHuanyuanshi = document.getElementById('simplify-huanyuanshi');
+    const simplifyBtn = document.getElementById('simplify-btn');
+    const simplifyOriginal = document.getElementById('simplify-original');
+    const simplifyResult = document.getElementById('simplify-result');
+    const simplifyResultText = document.getElementById('simplify-result-text');
 
-    // 根据变形方法启用/禁用选项输入框（完全模仿原Qt逻辑）
     function updateSimplifyOptions() {
-        const idx = parseInt(simplifyMethod.value, 10);
-        // 索引3: 主元(collect) -> 启用主元符号
-        // 索引12: 换元 -> 启用所有三个
-        // 其他: 禁用所有
+        let idx = parseInt(simplifyMethod.value, 10);
         if (idx === 3) {
-            zhuyuanInput.disabled = false;
-            huanyuanInput.disabled = true;
-            huanyuanshiInput.disabled = true;
+            simplifyZhuyuan.disabled = false;
+            simplifyHuanyuan.disabled = true;
+            simplifyHuanyuanshi.disabled = true;
         } else if (idx === 12) {
-            zhuyuanInput.disabled = false;
-            huanyuanInput.disabled = false;
-            huanyuanshiInput.disabled = false;
+            simplifyZhuyuan.disabled = false;
+            simplifyHuanyuan.disabled = false;
+            simplifyHuanyuanshi.disabled = false;
         } else {
-            zhuyuanInput.disabled = true;
-            huanyuanInput.disabled = true;
-            huanyuanshiInput.disabled = true;
+            simplifyZhuyuan.disabled = true;
+            simplifyHuanyuan.disabled = true;
+            simplifyHuanyuanshi.disabled = true;
         }
     }
     simplifyMethod.addEventListener('change', updateSimplifyOptions);
-    updateSimplifyOptions(); // 初始化
+    updateSimplifyOptions();
 
-    const simplifyExprInput = document.getElementById('simplify-expr');
-    simplifyExprInput.addEventListener('input', function() {
-        const expr = this.value;
+    simplifyExpr.addEventListener('input', function() {
+        let expr = this.value;
         if (!expr) return;
         fetch('/api/simplify', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ expr: expr, method_index: 0 })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ expr: expr, method_index: 0, fs: getFs() })
         })
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                document.getElementById('simplify-original').innerHTML = `\\(${data.original}\\)`;
+                simplifyOriginal.innerHTML = `\\(${data.original}\\)`;
                 renderMath();
             }
         })
         .catch(() => {});
     });
 
-    document.getElementById('simplify-btn').addEventListener('click', function() {
-        const expr = simplifyExprInput.value;
-        const methodIndex = parseInt(simplifyMethod.value, 10);
-        const zhuyuan = zhuyuanInput.disabled ? null : zhuyuanInput.value;
-        const huanyuan = huanyuanInput.disabled ? null : huanyuanInput.value;
-        const huanyuanshi = huanyuanshiInput.disabled ? null : huanyuanshiInput.value;
+    simplifyBtn.addEventListener('click', function() {
+        let expr = simplifyExpr.value;
+        let methodIndex = parseInt(simplifyMethod.value, 10);
+        let zhuyuan = simplifyZhuyuan.disabled ? null : simplifyZhuyuan.value;
+        let huanyuan = simplifyHuanyuan.disabled ? null : simplifyHuanyuan.value;
+        let huanyuanshi = simplifyHuanyuanshi.disabled ? null : simplifyHuanyuanshi.value;
 
         fetch('/api/simplify', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 expr: expr,
                 method_index: methodIndex,
                 zhuyuan: zhuyuan,
                 huanyuan: huanyuan,
-                huanyuanshi: huanyuanshi
+                huanyuanshi: huanyuanshi,
+                fs: getFs()
             })
         })
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                document.getElementById('simplify-original').innerHTML = `\\(${data.original}\\)`;
-                document.getElementById('simplify-result').innerHTML = `\\(${data.simplified}\\)`;
-                document.getElementById('simplify-result-text').value = data.simplified_str;
+                simplifyOriginal.innerHTML = `\\(${data.original}\\)`;
+                simplifyResult.innerHTML = `\\(${data.simplified}\\)`;
+                simplifyResultText.value = data.simplified_str;
                 renderMath();
             } else {
                 alert('变形失败：' + data.error);
@@ -436,29 +457,56 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(err => alert('网络错误：' + err));
     });
-    if (simplifyExprInput.value) simplifyExprInput.dispatchEvent(new Event('input'));
+    if (simplifyExpr.value) simplifyExpr.dispatchEvent(new Event('input'));
 
-    // ---------- 方程页面 ----------
+    // ========== 方程页（含微分方程）==========
     const eqLhs = document.getElementById('equation-lhs');
     const eqRhs = document.getElementById('equation-rhs');
     const eqVar = document.getElementById('equation-var');
     const eqDomain = document.getElementById('equation-domain');
+    const eqOde = document.getElementById('equation-ode');
+    const eqBtn = document.getElementById('equation-btn');
+    const eqOriginal = document.getElementById('equation-original');
+    const eqSolution = document.getElementById('equation-solution');
+    const eqSolutionText = document.getElementById('equation-solution-text');
+
+    eqOde.addEventListener('change', function() {
+        eqVar.disabled = this.checked;
+        eqDomain.disabled = this.checked;
+        if (this.checked) {
+            eqVar.value = 'f(x)';
+            eqDomain.value = '';
+        } else {
+            eqVar.value = 'x';
+            eqDomain.value = 'Reals';
+        }
+        // 触发更新原方程显示
+        updateEquationOriginal();
+    });
 
     function updateEquationOriginal() {
-        const lhs = eqLhs.value;
-        const rhs = eqRhs.value;
-        const var_ = eqVar.value;
-        const domain = eqDomain.value;
+        let lhs = eqLhs.value;
+        let rhs = eqRhs.value;
+        let var_ = eqVar.value;
+        let domain = eqDomain.value;
+        let isOde = eqOde.checked;
         if (!lhs) return;
         fetch('/api/equation', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ lhs, rhs, var: var_, domain })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                lhs: lhs,
+                rhs: rhs,
+                var: var_,
+                domain: domain,
+                is_ode: isOde,
+                fs: getFs()
+            })
         })
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                document.getElementById('equation-original').innerHTML = `\\(${data.original}\\)`;
+                eqOriginal.innerHTML = `\\(${data.original}\\)`;
                 renderMath();
             }
         })
@@ -470,23 +518,31 @@ document.addEventListener('DOMContentLoaded', function() {
     eqVar.addEventListener('input', updateEquationOriginal);
     eqDomain.addEventListener('input', updateEquationOriginal);
 
-    document.getElementById('equation-btn').addEventListener('click', function() {
-        const lhs = eqLhs.value;
-        const rhs = eqRhs.value;
-        const var_ = eqVar.value;
-        const domain = eqDomain.value;
+    eqBtn.addEventListener('click', function() {
+        let lhs = eqLhs.value;
+        let rhs = eqRhs.value;
+        let var_ = eqVar.value;
+        let domain = eqDomain.value;
+        let isOde = eqOde.checked;
 
         fetch('/api/equation', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ lhs, rhs, var: var_, domain })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                lhs: lhs,
+                rhs: rhs,
+                var: var_,
+                domain: domain,
+                is_ode: isOde,
+                fs: getFs()
+            })
         })
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                document.getElementById('equation-original').innerHTML = `\\(${data.original}\\)`;
-                document.getElementById('equation-solution').innerHTML = `\\(${data.solution}\\)`;
-                document.getElementById('equation-solution-text').value = data.solution_str;
+                eqOriginal.innerHTML = `\\(${data.original}\\)`;
+                eqSolution.innerHTML = `\\(${data.solution}\\)`;
+                eqSolutionText.value = data.solution_str;
                 renderMath();
             } else {
                 alert('方程求解失败：' + data.error);
@@ -496,29 +552,158 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     if (eqLhs.value) updateEquationOriginal();
 
-    // ---------- 不等式页面 ----------
+    // ========== 方程组页 ==========
+    const eqList = document.getElementById('equation-list');
+    const eqLhsInput = document.getElementById('eq-lhs');
+    const eqRhsInput = document.getElementById('eq-rhs');
+    const eqSave = document.getElementById('eq-save');
+    const eqDelete = document.getElementById('eq-delete');
+    const eqVarsInput = document.getElementById('eq-vars');
+    const eqSolve = document.getElementById('eq-solve');
+    const eqSystemOriginal = document.getElementById('eqsystem-original');
+    const eqSystemSolution = document.getElementById('eqsystem-solution');
+    const eqSystemSolutionText = document.getElementById('eqsystem-solution-text');
+
+    function refreshEquationList() {
+        eqList.innerHTML = '';
+        for (let key in equations) {
+            let li = document.createElement('li');
+            li.textContent = key;
+            li.dataset.key = key;
+            li.addEventListener('click', function() {
+    document.querySelectorAll('#equation-list li').forEach(li => li.classList.remove('selected'));
+    this.classList.add('selected');
+    let eq = equations[this.dataset.key];
+    eqLhsInput.value = eq[0];
+    eqRhsInput.value = eq[1];
+
+    // 分别获取左右表达式的 LaTeX
+    Promise.all([
+        fetch('/api/latex', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ expr: eq[0], fs: getFs() })
+        }).then(res => res.json()),
+        fetch('/api/latex', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ expr: eq[1], fs: getFs() })
+        }).then(res => res.json())
+    ]).then(([lhsRes, rhsRes]) => {
+        if (lhsRes.success && rhsRes.success) {
+            eqSystemOriginal.innerHTML = `\\(${lhsRes.latex} = ${rhsRes.latex}\\)`;
+            renderMath();
+        } else {
+            eqSystemOriginal.innerHTML = `\\(${eq[0]} = ${eq[1]}\\)`; // 降级显示
+        }
+    }).catch(() => {
+        eqSystemOriginal.innerHTML = `\\(${eq[0]} = ${eq[1]}\\)`;
+    });
+});
+            eqList.appendChild(li);
+        }
+    }
+
+    eqSave.addEventListener('click', function() {
+    let lhs = eqLhsInput.value.trim();
+    let rhs = eqRhsInput.value.trim();
+    if (!lhs) return;
+    let key = lhs + ' = ' + rhs;
+    if (!equations[key]) {
+        equations[key] = [lhs, rhs];
+        refreshEquationList();
+    } else {
+        // 已存在，可能更新表达式
+        equations[key] = [lhs, rhs];
+        refreshEquationList();
+    }
+    // 选中新保存的项
+    let items = document.querySelectorAll('#equation-list li');
+    for (let li of items) {
+        if (li.dataset.key === key) {
+            li.classList.add('selected');
+            // 手动触发点击事件来更新原式
+            li.click();
+            break;
+        }
+    }
+});
+
+    eqDelete.addEventListener('click', function() {
+        let selected = document.querySelector('#equation-list li.selected');
+        if (!selected) return;
+        let key = selected.dataset.key;
+        delete equations[key];
+        refreshEquationList();
+        eqSystemOriginal.innerHTML = '';
+        eqSystemSolution.innerHTML = '';
+        eqSystemSolutionText.value = '';
+    });
+
+    eqSolve.addEventListener('click', function() {
+        let eqsArray = Object.values(equations);
+        let vars = eqVarsInput.value;
+        fetch('/api/equationsystem', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                equations: eqsArray,
+                variables: vars,
+                fs: getFs()
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                eqSystemSolution.innerHTML = `\\(${data.solution}\\)`;
+                eqSystemSolutionText.value = data.solution;
+                renderMath();
+            } else {
+                alert('求解失败：' + data.error);
+            }
+        })
+        .catch(err => alert('网络错误：' + err));
+    });
+
+    // 默认添加一个示例方程
+    equations['x + y = 0'] = ['x + y', '0'];
+    refreshEquationList();
+    if (eqList.firstChild) eqList.firstChild.click();
+
+    // ========== 不等式页 ==========
     const ineqLhs = document.getElementById('inequality-lhs');
     const ineqRhs = document.getElementById('inequality-rhs');
     const ineqRel = document.getElementById('inequality-rel');
     const ineqVar = document.getElementById('inequality-var');
     const ineqDomain = document.getElementById('inequality-domain');
+    const ineqBtn = document.getElementById('inequality-btn');
+    const ineqOriginal = document.getElementById('inequality-original');
+    const ineqSolution = document.getElementById('inequality-solution');
+    const ineqSolutionText = document.getElementById('inequality-solution-text');
 
     function updateInequalityOriginal() {
-        const lhs = ineqLhs.value;
-        const rhs = ineqRhs.value;
-        const rel = ineqRel.value;
-        const var_ = ineqVar.value;
-        const domain = ineqDomain.value;
+        let lhs = ineqLhs.value;
+        let rhs = ineqRhs.value;
+        let rel = ineqRel.value;
+        let var_ = ineqVar.value;
+        let domain = ineqDomain.value;
         if (!lhs) return;
         fetch('/api/inequality', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ lhs, rhs, rel, var: var_, domain })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                lhs: lhs,
+                rhs: rhs,
+                rel: rel,
+                var: var_,
+                domain: domain,
+                fs: getFs()
+            })
         })
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                document.getElementById('inequality-original').innerHTML = `\\(${data.original}\\)`;
+                ineqOriginal.innerHTML = `\\(${data.original}\\)`;
                 renderMath();
             }
         })
@@ -531,24 +716,31 @@ document.addEventListener('DOMContentLoaded', function() {
     ineqVar.addEventListener('input', updateInequalityOriginal);
     ineqDomain.addEventListener('input', updateInequalityOriginal);
 
-    document.getElementById('inequality-btn').addEventListener('click', function() {
-        const lhs = ineqLhs.value;
-        const rhs = ineqRhs.value;
-        const rel = ineqRel.value;
-        const var_ = ineqVar.value;
-        const domain = ineqDomain.value;
+    ineqBtn.addEventListener('click', function() {
+        let lhs = ineqLhs.value;
+        let rhs = ineqRhs.value;
+        let rel = ineqRel.value;
+        let var_ = ineqVar.value;
+        let domain = ineqDomain.value;
 
         fetch('/api/inequality', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ lhs, rhs, rel, var: var_, domain })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                lhs: lhs,
+                rhs: rhs,
+                rel: rel,
+                var: var_,
+                domain: domain,
+                fs: getFs()
+            })
         })
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                document.getElementById('inequality-original').innerHTML = `\\(${data.original}\\)`;
-                document.getElementById('inequality-solution').innerHTML = `\\(${data.solution}\\)`;
-                document.getElementById('inequality-solution-text').value = data.solution_str;
+                ineqOriginal.innerHTML = `\\(${data.original}\\)`;
+                ineqSolution.innerHTML = `\\(${data.solution}\\)`;
+                ineqSolutionText.value = data.solution_str;
                 renderMath();
             } else {
                 alert('不等式求解失败：' + data.error);
@@ -557,4 +749,125 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(err => alert('网络错误：' + err));
     });
     if (ineqLhs.value) updateInequalityOriginal();
+
+    // ========== 不等式组页 ==========
+    const ineqList = document.getElementById('inequality-list');
+    const ineqLhsInput = document.getElementById('ineq-lhs');
+    const ineqRhsInput = document.getElementById('ineq-rhs');
+    const ineqRelSelect = document.getElementById('ineq-rel');
+    const ineqSave = document.getElementById('ineq-save');
+    const ineqDelete = document.getElementById('ineq-delete');
+    const ineqVarInput = document.getElementById('ineq-var');
+    const ineqSolve = document.getElementById('ineq-solve');
+    const ineqSystemOriginal = document.getElementById('ineqsystem-original');
+    const ineqSystemSolution = document.getElementById('ineqsystem-solution');
+    const ineqSystemSolutionText = document.getElementById('ineqsystem-solution-text');
+
+    function refreshInequalityList() {
+        ineqList.innerHTML = '';
+        for (let key in inequalities) {
+            let li = document.createElement('li');
+            li.textContent = key;
+            li.dataset.key = key;
+            li.addEventListener('click', function() {
+    document.querySelectorAll('#inequality-list li').forEach(li => li.classList.remove('selected'));
+    this.classList.add('selected');
+    let ineq = inequalities[this.dataset.key];
+    ineqLhsInput.value = ineq[0];
+    ineqRhsInput.value = ineq[1];
+    ineqRelSelect.value = ineq[2];
+
+    // 分别获取左右表达式的 LaTeX
+    Promise.all([
+        fetch('/api/latex', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ expr: ineq[0], fs: getFs() })
+        }).then(res => res.json()),
+        fetch('/api/latex', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ expr: ineq[1], fs: getFs() })
+        }).then(res => res.json())
+    ]).then(([lhsRes, rhsRes]) => {
+        if (lhsRes.success && rhsRes.success) {
+            ineqSystemOriginal.innerHTML = `\\(${lhsRes.latex} ${ineq[2]} ${rhsRes.latex}\\)`;
+            renderMath();
+        } else {
+            ineqSystemOriginal.innerHTML = `\\(${ineq[0]} ${ineq[2]} ${ineq[1]}\\)`;
+        }
+    }).catch(() => {
+        ineqSystemOriginal.innerHTML = `\\(${ineq[0]} ${ineq[2]} ${ineq[1]}\\)`;
+    });
+});
+            ineqList.appendChild(li);
+        }
+    }
+
+    ineqSave.addEventListener('click', function() {
+    let lhs = ineqLhsInput.value.trim();
+    let rhs = ineqRhsInput.value.trim();
+    let rel = ineqRelSelect.value;
+    if (!lhs) return;
+    let key = lhs + ' ' + rel + ' ' + rhs;
+    if (!inequalities[key]) {
+        inequalities[key] = [lhs, rhs, rel];
+        refreshInequalityList();
+    } else {
+        inequalities[key] = [lhs, rhs, rel];
+        refreshInequalityList();
+    }
+    let items = document.querySelectorAll('#inequality-list li');
+    for (let li of items) {
+        if (li.dataset.key === key) {
+            li.classList.add('selected');
+            li.click();
+            break;
+        }
+    }
+});
+
+    ineqDelete.addEventListener('click', function() {
+        let selected = document.querySelector('#inequality-list li.selected');
+        if (!selected) return;
+        let key = selected.dataset.key;
+        delete inequalities[key];
+        refreshInequalityList();
+        ineqSystemOriginal.innerHTML = '';
+        ineqSystemSolution.innerHTML = '';
+        ineqSystemSolutionText.value = '';
+    });
+
+    ineqSolve.addEventListener('click', function() {
+        let ineqsArray = Object.values(inequalities);
+        let var_ = ineqVarInput.value;
+        fetch('/api/inequalitysystem', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                inequalities: ineqsArray,
+                variable: var_,
+                fs: getFs()
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                ineqSystemSolution.innerHTML = `\\(${data.solution}\\)`;
+                ineqSystemSolutionText.value = data.solution;
+                renderMath();
+            } else {
+                alert('求解失败：' + data.error);
+            }
+        })
+        .catch(err => alert('网络错误：' + err));
+    });
+
+    // 默认添加一个示例不等式
+    inequalities['x > 0'] = ['x', '0', '>'];
+    refreshInequalityList();
+    if (ineqList.firstChild) ineqList.firstChild.click();
+
+    // ========== 帮助页 ==========
+    // 无需JS，已内联 iframe
 });

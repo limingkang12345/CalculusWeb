@@ -141,3 +141,23 @@ input[type="text"], select {
     background-color: #0078d7;
     color: white;
 }
+#equation-list, #inequality-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border: 1px solid #ccc;
+    height: 200px;
+    overflow-y: auto;
+}
+#equation-list li, #inequality-list li {
+    padding: 5px 8px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+#equation-list li:hover, #inequality-list li:hover {
+    background-color: #e0e0e0;
+}
+#equation-list li.selected, #inequality-list li.selected {
+    background-color: #0078d7;
+    color: white;
+}

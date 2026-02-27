@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>微积分计算器 v1.3</title>
+    <title>微积分计算器 v1.4</title>
     <!-- MathJax CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML"></script>
     <link rel="stylesheet" href="/static/css/style.css">
+	<link rel="icon" href="favicon.ico" type="image/x-icon">
 </head>
 <body>
     <div class="container">
@@ -18,14 +19,16 @@
             <button class="tab-button" data-tab="integral">积分</button>
             <button class="tab-button" data-tab="simplify">变形</button>
             <button class="tab-button" data-tab="equation">方程</button>
+			<button class="tab-button" data-tab="fangchengzu">方程组</button>
             <button class="tab-button" data-tab="inequality">不等式</button>
+			<button class="tab-button" data-tab="budengshizu">不等式组</button>
             <button class="tab-button" data-tab="help">帮助</button>
         </div>
 
         <!-- 首页内容 (保持不变) -->
         <div id="home" class="tab-content active">
             <div class="welcome">
-                <h1>欢迎使用微积分计算器v1.3！</h1>
+                <h1>欢迎使用微积分计算器v1.4！</h1>
                 <p>Author: Li Mingkang</p>
                 <p>Contributor: CuberAHZ</p>
             </div>
@@ -249,6 +252,11 @@
                         <div class="group-title">主元取值范围</div>
                         <input type="text" id="equation-domain" value="Reals">
                     </div>
+					<div class="checkbox-row">
+					<label>
+						<input type="checkbox" id="equation-ode"> 微分方程
+					</label>
+				</div>
                 </div>
                 <div class="group-box">
                     <div class="group-title">原方程</div>
@@ -262,6 +270,46 @@
                 <button id="equation-btn" class="action-btn">求解</button>
             </div>
         </div>
+		<div id="fangchengzu" class="tab-content">
+    <div class="section" style="display: flex; gap: 10px;">
+        <!-- 左侧方程列表 -->
+        <div class="group-box" style="width: 220px;">
+            <div class="group-title">方程列表</div>
+            <ul id="equation-list" style="list-style: none; padding: 5px; height: 200px; overflow-y: auto; border: 1px solid #ccc;"></ul>
+        </div>
+        <!-- 右侧编辑区 -->
+        <div style="flex: 1;">
+            <div class="group-box">
+                <div class="group-title">方程编辑</div>
+                <div style="display: grid; gap: 8px;">
+                    <input type="text" id="eq-lhs" placeholder="左边表达式" value="x + y">
+                    <div style="display: flex; align-items: center;">
+                        <span style="width: 30px;">=</span>
+                        <input type="text" id="eq-rhs" placeholder="右边表达式" value="0" style="flex:1;">
+                    </div>
+                </div>
+                <div style="margin-top: 10px; display: flex; gap: 10px;">
+                    <button id="eq-save" class="action-btn" style="width: auto;">保存</button>
+                    <button id="eq-delete" class="action-btn" style="width: auto;">删除</button>
+                </div>
+            </div>
+            <div class="group-box">
+                <div class="group-title">求解变量</div>
+                <input type="text" id="eq-vars" value="x,y" placeholder="用逗号分隔，如 x,y">
+                <button id="eq-solve" class="action-btn" style="margin-top: 10px;">求解</button>
+            </div>
+            <div class="group-box">
+                <div class="group-title">原方程</div>
+                <div id="eqsystem-original" class="math-output"></div>
+            </div>
+            <div class="group-box">
+                <div class="group-title">解集</div>
+                <div id="eqsystem-solution" class="math-output"></div>
+                <input type="text" id="eqsystem-solution-text" readonly placeholder="解集字符串形式" style="margin-top: 10px;">
+            </div>
+			</div>
+			</div>
+		</div>
 
         <!-- 不等式标签页 -->
         <div id="inequality" class="tab-content">
@@ -302,6 +350,52 @@
                 <button id="inequality-btn" class="action-btn">求解</button>
             </div>
         </div>
+		<div id="budengshizu" class="tab-content">
+    <div class="section" style="display: flex; gap: 10px;">
+        <!-- 左侧不等式列表 -->
+        <div class="group-box" style="width: 220px;">
+            <div class="group-title">不等式列表</div>
+            <ul id="inequality-list" style="list-style: none; padding: 5px; height: 200px; overflow-y: auto; border: 1px solid #ccc;"></ul>
+        </div>
+        <!-- 右侧编辑区 -->
+        <div style="flex: 1;">
+            <div class="group-box">
+                <div class="group-title">不等式编辑</div>
+                <div style="display: grid; gap: 8px;">
+                    <input type="text" id="ineq-lhs" placeholder="左边表达式" value="x">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <select id="ineq-rel" style="width: 70px;">
+                            <option value="!=">!=</option>
+                            <option value=">">&gt;</option>
+                            <option value=">=">&gt;=</option>
+                            <option value="<">&lt;</option>
+                            <option value="<=">&lt;=</option>
+                        </select>
+                        <input type="text" id="ineq-rhs" placeholder="右边表达式" value="0" style="flex:1;">
+                    </div>
+                </div>
+                <div style="margin-top: 10px; display: flex; gap: 10px;">
+                    <button id="ineq-save" class="action-btn" style="width: auto;">保存</button>
+                    <button id="ineq-delete" class="action-btn" style="width: auto;">删除</button>
+                </div>
+            </div>
+            <div class="group-box">
+                <div class="group-title">求解变量</div>
+                <input type="text" id="ineq-var" value="x" placeholder="单个变量">
+                <button id="ineq-solve" class="action-btn" style="margin-top: 10px;">求解</button>
+            </div>
+            <div class="group-box">
+                <div class="group-title">原不等式</div>
+                <div id="ineqsystem-original" class="math-output"></div>
+            </div>
+            <div class="group-box">
+                <div class="group-title">解集</div>
+                <div id="ineqsystem-solution" class="math-output"></div>
+                <input type="text" id="ineqsystem-solution-text" readonly placeholder="解集字符串形式" style="margin-top: 10px;">
+            </div>
+        </div>
+		</div>
+		</div>
 
         <!-- 帮助标签页：直接嵌入 iframe 显示 help.html -->
         <div id="help" class="tab-content">
