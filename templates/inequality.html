@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block content %}
+{% set active_page = 'inequality' %}
+
+<div class="page-header">
+    <h2>≷ 不等式求解</h2>
+    <p>求解一元不等式，支持多种不等号</p>
+</div>
+
+<form method="POST" class="card">
+    <div class="card-header">📝 不等式设置</div>
+    <div class="card-body">
+        <div class="form-row">
+            <div class="form-group">
+                <label>左式</label>
+                <input type="text" name="lhs" id="ineqLhs" placeholder="例如: x**2" value="{{ request.form.get('lhs', '') }}" required>
+            </div>
+            <div class="form-group" style="flex:0 0 80px;">
+                <label>不等号</label>
+                <select name="rel">
+                    <option value="!=" {% if request.form.get('rel') == '!=' %}selected{% endif %}>=/=</option>
+                    <option value=">" {% if request.form.get('rel') == '>' or not request.form.get('rel') %}selected{% endif %}>&gt;</option>
+                    <option value=">=" {% if request.form.get('rel') == '>=' %}selected{% endif %}>&gt;=</option>
+                    <option value="<" {% if request.form.get('rel') == '<' %}selected{% endif %}>&lt;</option>
+                    <option value="<=" {% if request.form.get('rel') == '<=' %}selected{% endif %}>&lt;=</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>右式</label>
+                <input type="text" name="rhs" id="ineqRhs" placeholder="例如: 4" value="{{ request.form.get('rhs', '0') }}">
+            </div>
+        </div>
+        <div id="ineqPreview" style="margin-top:6px;min-height:30px;"></div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>主元符号</label>
+                <input type="text" name="var" value="{{ request.form.get('var', 'x') }}" placeholder="x">
+            </div>
+            <div class="form-group">
+                <label>取值范围</label>
+                <input type="text" name="domain" value="{{ request.form.get('domain', 'Reals') }}" placeholder="Reals">
+            </div>
+        </div>
+        <div class="btn-group">
+            <button type="submit" class="btn btn-primary">🧮 求解</button>
+        </div>
+    </div>
+</form>
+
+{% if result %}
+<div class="card result-card">
+    <div class="card-header">📊 解集</div>
+    <div class="card-body">
+        <div class="result-display">
+            <div style="font-size:20px;">\({{ result_latex | safe }}\)</div>
+        </div>
+        <div class="result-text">{{ result }}</div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    function updateIneqPreview() {
+        const lhs = document.getElementById('ineqLhs').value;
+        const rhs = document.getElementById('ineqRhs').value;
+        const rel = document.querySelector('[name="rel"]').value;
+        const preview = document.getElementById('ineqPreview');
+        if (lhs.trim()) {
+            Promise.all([
+                fetch('{{ url_for("api_render") }}?expr=' + encodeURIComponent(lhs)).then(r => r.json()),
+                fetch('{{ url_for("api_render") }}?expr=' + encodeURIComponent(rhs || '0')).then(r => r.json())
+            ]).then(([l, r]) => {
+                if (l.success && r.success) {
+                    const relMap = {'!=': '\\ne', '>': '>', '>=': '\\ge', '<': '<', '<=': '\\le'};
+                    preview.innerHTML = '\\(' + l.latex + ' ' + (relMap[rel] || rel) + ' ' + r.latex + '\\)';
+                    if (window.MathJax && MathJax.typesetPromise) {
+                        MathJax.typesetPromise([preview]);
+                    }
+                }
+            }).catch(() => {});
+        } else {
+            preview.innerHTML = '';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('ineqLhs').addEventListener('input', updateIneqPreview);
+        document.getElementById('ineqRhs').addEventListener('input', updateIneqPreview);
+        document.querySelector('[name="rel"]').addEventListener('change', updateIneqPreview);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block content %}
+{% set active_page = 'integral' %}
+
+<div class="page-header">
+    <h2>∫ 积分</h2>
+    <p>计算函数的不定积分或定积分</p>
+</div>
+
+<form method="POST" class="card">
+    <div class="card-header">📝 积分设置</div>
+    <div class="card-body">
+        <div class="form-group">
+            <label>被积函数</label>
+            <input type="text" name="expr" id="integralExpr" placeholder="例如: x**2" value="{{ request.form.get('expr', '') }}" required>
+            <div id="integralPreview" style="margin-top:6px;"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>积分变量</label>
+                <input type="text" name="var" value="{{ request.form.get('var', 'x') }}" placeholder="x">
+            </div>
+            <div class="form-group" style="display:flex;align-items:flex-end;">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="is_definite" onchange="toggleDefinite()" {% if request.form.get('is_definite') == 'on' %}checked{% endif %}>
+                    定积分
+                </label>
+            </div>
+        </div>
+        <div class="form-row" id="definiteRow" style="{% if request.form.get('is_definite') != 'on' %}display:none;{% endif %}">
+            <div class="form-group">
+                <label>下限</label>
+                <input type="text" name="lower" value="{{ request.form.get('lower', '') }}" placeholder="例如: 0">
+            </div>
+            <div class="form-group">
+                <label>上限</label>
+                <input type="text" name="upper" value="{{ request.form.get('upper', '') }}" placeholder="例如: 1">
+            </div>
+        </div>
+        <div class="btn-group">
+            <button type="submit" class="btn btn-primary">🧮 计算积分</button>
+        </div>
+    </div>
+</form>
+
+{% if result_antiderivative %}
+<div class="card result-card">
+    <div class="card-header">📊 原函数</div>
+    <div class="card-body">
+        <div class="result-display">
+            <div style="font-size:20px;">\({{ result_antiderivative_latex | safe }}\)</div>
+        </div>
+        <div class="result-text">{{ result_antiderivative }}</div>
+    </div>
+</div>
+{% endif %}
+
+{% if result_definite %}
+<div class="card result-card">
+    <div class="card-header">📊 定积分值</div>
+    <div class="card-body">
+        <div class="result-display">
+            <div style="font-size:20px;">\({{ result_definite_latex | safe }}\)</div>
+        </div>
+        <div class="result-text">{{ result_definite }}</div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    function toggleDefinite() {
+        const cb = document.querySelector('[name="is_definite"]');
+        document.getElementById('definiteRow').style.display = cb.checked ? 'flex' : 'none';
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const input = document.getElementById('integralExpr');
+        const preview = document.getElementById('integralPreview');
+        if (input && preview) {
+            input.addEventListener('input', function() {
+                if (this.value.trim()) {
+                    fetch('{{ url_for("api_render") }}?expr=' + encodeURIComponent(this.value))
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.success) {
+                                preview.innerHTML = 'f(x) = \\(' + data.latex + '\\)';
+                                if (window.MathJax && MathJax.typesetPromise) {
+                                    MathJax.typesetPromise([preview]);
+                                }
+                            }
+                        })
+                        .catch(() => {});
+                } else {
+                    preview.innerHTML = '';
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

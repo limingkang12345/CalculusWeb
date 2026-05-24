@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block content %}
+{% set active_page = 'simplify' %}
+
+<div class="page-header">
+    <h2>🔧 表达式变形</h2>
+    <p>支持13种表达式变形方法：化简、展开、因式分解、三角变换、换元等</p>
+</div>
+
+<form method="POST" class="card">
+    <div class="card-header">📝 变形设置</div>
+    <div class="card-body">
+        <div class="form-group">
+            <label>原表达式</label>
+            <input type="text" name="expr" id="simplifyExpr" placeholder="例如: x**2 + 2*x + 1" value="{{ request.form.get('expr', '') }}" required>
+            <div id="simplifyPreview" style="margin-top:6px;"></div>
+        </div>
+        <div class="form-group">
+            <label>变形方法</label>
+            <select name="method" id="methodSelect" onchange="toggleMethodFields()">
+                {% for m in methods %}
+                <option value="{{ loop.index0 }}" {% if request.form.get('method')|string == loop.index0|string or (not request.form.get('method') and loop.index0 == 0) %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-row" id="zhuyuanRow" style="display:none;">
+            <div class="form-group">
+                <label>主元符号</label>
+                <input type="text" name="zhuyuan" id="zhuyuanField" placeholder="例如: x" value="{{ request.form.get('zhuyuan', '') }}">
+            </div>
+        </div>
+        <div class="form-row" id="huanyuanRow" style="display:none;">
+            <div class="form-group">
+                <label>换元符号</label>
+                <input type="text" name="huanyuan" placeholder="例如: t" value="{{ request.form.get('huanyuan', '') }}">
+            </div>
+            <div class="form-group">
+                <label>换元式</label>
+                <input type="text" name="huanyuanshi" placeholder="例如: x+1" value="{{ request.form.get('huanyuanshi', '') }}">
+            </div>
+        </div>
+        <div class="btn-group">
+            <button type="submit" class="btn btn-primary">🧮 变形</button>
+        </div>
+    </div>
+</form>
+
+{% if result %}
+<div class="card result-card">
+    <div class="card-header">📊 变形结果</div>
+    <div class="card-body">
+        <div class="result-display">
+            <div style="font-size:20px;">\({{ result_latex | safe }}\)</div>
+        </div>
+        <div class="result-text">{{ result }}</div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    function toggleMethodFields() {
+        const idx = parseInt(document.getElementById('methodSelect').value);
+        // 索引3=主元collect, 索引12=换元 需要显示主元
+        document.getElementById('zhuyuanRow').style.display = (idx === 3 || idx === 12) ? 'flex' : 'none';
+        // 索引12=换元 还需要显示换元符和换元式
+        document.getElementById('huanyuanRow').style.display = (idx === 12) ? 'flex' : 'none';
+    }
+    // 页面加载时调用一次
+    document.addEventListener('DOMContentLoaded', toggleMethodFields);
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const input = document.getElementById('simplifyExpr');
+        const preview = document.getElementById('simplifyPreview');
+        if (input && preview) {
+            input.addEventListener('input', function() {
+                if (this.value.trim()) {
+                    fetch('{{ url_for("api_render") }}?expr=' + encodeURIComponent(this.value))
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.success) {
+                                preview.innerHTML = '\\(' + data.latex + '\\)';
+                                if (window.MathJax && MathJax.typesetPromise) {
+                                    MathJax.typesetPromise([preview]);
+                                }
+                            }
+                        })
+                        .catch(() => {});
+                } else {
+                    preview.innerHTML = '';
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

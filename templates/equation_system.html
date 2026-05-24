@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block content %}
+{% set active_page = 'equation_system' %}
+
+<div class="page-header">
+    <h2>⊞ 方程组求解</h2>
+    <p>管理并求解多元方程组</p>
+</div>
+
+<div style="display:flex;gap:20px;flex-wrap:wrap;">
+    <!-- 左侧：方程列表 -->
+    <div class="card item-list-card">
+        <div class="card-header">📋 方程列表</div>
+        <div class="card-body" style="padding:0;">
+            <div class="item-list">
+                {% if eqs %}
+                    {% for key, eq in eqs.items() %}
+                    <div class="item-entry">
+                        <span class="item-text" onclick="readEquation('{{ key | e }}')">{{ eq[0] }} = {{ eq[1] }}</span>
+                        <form method="POST" style="display:inline;">
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="key" value="{{ key | e }}">
+                            <button type="submit" class="item-delete" style="background:none;border:none;">✕</button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="padding:20px;text-align:center;color:var(--text-secondary);">暂无方程</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧：操作区 -->
+    <div style="flex:1;min-width:300px;">
+        <!-- 添加方程 -->
+        <form method="POST" class="card">
+            <input type="hidden" name="action" value="save">
+            <div class="card-header">➕ 添加方程</div>
+            <div class="card-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>左式</label>
+                        <input type="text" name="lhs" placeholder="例如: x + y" required>
+                    </div>
+                    <div class="form-group">
+                        <label>右式</label>
+                        <input type="text" name="rhs" placeholder="例如: 1" value="0">
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-success">💾 添加</button>
+                </div>
+            </div>
+        </form>
+
+        <!-- 求解 -->
+        <form method="POST" class="card">
+            <input type="hidden" name="action" value="solve">
+            <div class="card-header">🧮 求解方程组</div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label>自由变量（用逗号分隔）</label>
+                    <input type="text" name="vars" value="{{ request.form.get('vars', 'x,y') }}" placeholder="x,y">
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">🧮 求解</button>
+                </div>
+            </div>
+        </form>
+
+        {% if result %}
+        <div class="card result-card">
+            <div class="card-header">📊 解</div>
+            <div class="card-body">
+                <div class="result-display">
+                    <div style="font-size:20px;">\({{ result_latex | safe }}\)</div>
+                </div>
+                <div class="result-text">{{ result }}</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    function readEquation(key) {
+        const eqs = {{ eqs | tojson | safe }};
+        const eq = eqs[key];
+        if (eq) {
+            // 将方程内容填入前面的表单（通过修改输入框）
+            const forms = document.querySelectorAll('form');
+            for (let form of forms) {
+                const lhsInput = form.querySelector('input[name="lhs"]');
+                const rhsInput = form.querySelector('input[name="rhs"]');
+                if (lhsInput && rhsInput && form.querySelector('input[name="action"]')?.value === 'save') {
+                    lhsInput.value = eq[0];
+                    rhsInput.value = eq[1];
+                    break;
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

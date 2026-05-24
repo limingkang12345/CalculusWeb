@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block content %}
+{% set active_page = 'help' %}
+
+<div class="page-header">
+    <h2>❓ 帮助文档</h2>
+    <p>微积分计算器 v1.4.3 帮助文档</p>
+</div>
+
+<div class="card">
+    <div class="card-body help-content">
+        <h1 style="margin-top:0;">微积分计算器 v1.4.3 帮助文档</h1>
+        <p>以下内容为所有文本框输入的<strong>共同标准</strong></p>
+
+        <h2>一、数学符号输入标准</h2>
+        <ol>
+            <li>加减<strong>乘</strong>除：<code>+</code> <code>-</code> <code>*</code> <code>/</code></li>
+            <li><strong>乘方</strong>：<code>**</code></li>
+            <li><strong>根号</strong>：<code>sqrt()</code></li>
+            <li><strong>绝对值</strong>：<code>abs()</code></li>
+            <li><strong>普通对数</strong>：<code>log(x,a)</code></li>
+            <li><strong>自然对数</strong>：<code>log(x)</code></li>
+            <li>三角函数/反三角函数：<code>sin()</code>等/<code>asin()</code>等</li>
+            <li>自然常数：<code>e</code></li>
+            <li><strong>圆周率</strong>：<code>pi</code></li>
+            <li><strong>正无穷/负无穷</strong>：<code>oo</code>/<code>-oo</code></li>
+            <li>括号：<strong>全部</strong>使用圆括号<code>()</code>即可</li>
+        </ol>
+        <p>例如：</p>
+        <table>
+            <tr><th>序号</th><th>数学含义</th><th>应输入的表达式</th></tr>
+            <tr><td style="text-align:center;">1</td><td style="text-align:center;">2x</td><td style="text-align:center;"><code>2*x</code></td></tr>
+            <tr><td style="text-align:center;">2</td><td style="text-align:center;">x的平方</td><td style="text-align:center;"><code>x**2</code></td></tr>
+            <tr><td style="text-align:center;">3</td><td style="text-align:center;">x的算术平方根</td><td style="text-align:center;"><code>sqrt(x)</code></td></tr>
+            <tr><td style="text-align:center;">4</td><td style="text-align:center;">以2为底x的对数</td><td style="text-align:center;"><code>log(x,2)</code></td></tr>
+            <tr><td style="text-align:center;">5</td><td style="text-align:center;">自然对数ln(x)</td><td style="text-align:center;"><code>log(x)</code></td></tr>
+            <tr><td style="text-align:center;">6</td><td style="text-align:center;">x的正弦值</td><td style="text-align:center;"><code>sin(x)</code></td></tr>
+        </table>
+
+        <h2>二、集合/区间输入标准</h2>
+        <ol>
+            <li><strong>列举法自定义集合</strong>：使用<code>FiniteSet()</code></li>
+            <li>描述法自定义集合：使用<code>ImageSet(Lambda(x,f(x)), Domain)</code>，其中f(x)为关于x的表达式，Domain为x的取值范围</li>
+            <li>内置集合：
+                <ol>
+                    <li><strong>实数集</strong>：<code>Reals</code></li>
+                    <li><strong>复数集</strong>：<code>Complexes</code></li>
+                    <li>自然数集：<code>Naturals</code></li>
+                    <li>正整数集：<code>Naturals0</code></li>
+                    <li><strong>整数集</strong>：<code>Integers</code></li>
+                    <li>有理数集：<code>Rationals</code></li>
+                    <li>空集：<code>EmptySet</code></li>
+                </ol>
+            </li>
+            <li><strong>区间</strong>：
+                <ol>
+                    <li>闭区间：使用<code>Interval(x,y)</code></li>
+                    <li>左开右闭区间：使用<code>Interval.Lopen(x,y)</code></li>
+                    <li>左闭右开区间：使用<code>Interval.Ropen(x,y)</code></li>
+                    <li>开区间：使用<code>Interval.open(x,y)</code></li>
+                </ol>
+            </li>
+            <li><strong>并集</strong>：使用<code>Union(A,B)</code></li>
+            <li>交集：使用<code>Intersection(A,B)</code></li>
+            <li>补集&amp;差集：使用<code>Complement(A,B)</code>，其中A为全集</li>
+        </ol>
+        <p>例如：</p>
+        <table>
+            <tr><th>序号</th><th>数学含义</th><th>应输入的表达式</th></tr>
+            <tr><td style="text-align:center;">1</td><td style="text-align:center;">集合{1,2}</td><td style="text-align:center;"><code>FiniteSet(1,2)</code></td></tr>
+            <tr><td style="text-align:center;">2</td><td style="text-align:center;">集合{y|y=x², x∈{1,2}}</td><td style="text-align:center;"><code>ImageSet(Lambda(x,x**2),FiniteSet(1,2))</code></td></tr>
+            <tr><td style="text-align:center;">3</td><td style="text-align:center;">区间[1,2]</td><td style="text-align:center;"><code>Interval(1,2)</code></td></tr>
+            <tr><td style="text-align:center;">4</td><td style="text-align:center;">区间[1,2)</td><td style="text-align:center;"><code>Interval.Ropen(1,2)</code></td></tr>
+            <tr><td style="text-align:center;">5</td><td style="text-align:center;">区间(1,2)</td><td style="text-align:center;"><code>Interval.open(1,2)</code></td></tr>
+            <tr><td style="text-align:center;">6</td><td style="text-align:center;">并集{0}∪[1,2]</td><td style="text-align:center;"><code>Union(FiniteSet(0),Interval(1,2))</code></td></tr>
+            <tr><td style="text-align:center;">7</td><td style="text-align:center;">交集{1,2}∩{2,3}</td><td style="text-align:center;"><code>Intersection(FiniteSet(1,2),FiniteSet(2,3))</code></td></tr>
+            <tr><td style="text-align:center;">8</td><td style="text-align:center;">补/差集R-[-1,1]</td><td style="text-align:center;"><code>Complement(Reals,Interval(-1,1))</code></td></tr>
+        </table>
+
+        <h2>三、函数输入标准</h2>
+        <p>对于已经在"定义"页面定义好的函数，可以在其余的大多数输入框内直接使用该函数，方法是把该函数的名称当做符号进行运算</p>
+        <p>例如：</p>
+        <p>已定义函数g(x)=x²，函数名为g，则在其他文本框中输入 <code>g+1/g</code>，得到的是：x²+1/x²</p>
+
+        <h2>四、微分方程输入标准</h2>
+        <p>微分方程的输入<strong>不符合</strong>上面的函数输入标准，因为微分方程的解在求解之前是未知的，所以会在翻译表达式时<strong>排除所有已定义的函数</strong>来避免干扰，同时要求解的函数被强行定义为f(x)</p>
+        <p>在微分方程的输入中，使用 <code>f(x).diff(x,n)</code> 来表示<strong>对x的n阶导数</strong>，可省略1，<strong>直接输入 <code>f(x).diff(x)</code></strong> 来表示f(x)的一阶导数</p>
+        <p>例如：</p>
+        <p>在方程界面勾选"微分方程"，输入左式与右式 <code>f(x).diff(x,1)</code> 和 <code>f(x)+1</code>，即完成微分方程 <code>f(x).diff(x,1)=f(x)+1</code> 的输入，此时点击求解，得到 <code>f(x)=C1*exp(x) - 1</code></p>
+
+        <h2>五、补充资料</h2>
+        <p>以上内容完全参考 Python 3.13 与 SymPy 1.14 的语言规范</p>
+        <p>若有困惑，请参考：</p>
+        <ol>
+            <li><a href="https://docs.python.org/zh-cn/3.13/" target="_blank">Python 3.13 官方文档</a></li>
+            <li><a href="https://docs.sympy.org/latest/index.html" target="_blank">SymPy 1.14 官方文档</a></li>
+        </ol>
+        <p>感谢您的使用！</p>
+        <p style="text-align:right;">LiMingkang</p>
+        <p style="text-align:right;">2026/2/26</p>
+    </div>
+</div>
+{% endblock %}

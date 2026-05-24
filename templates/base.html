@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微积分计算器 - CalculusCalculator</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script>
+        MathJax = {
+            tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+            svg: { fontCache: 'global' },
+            startup: { typeset: false }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 侧边栏导航 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>CalculusCalc</h1>
+                <div class="subtitle">微积分计算器 v1.4.3</div>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">工具</div>
+                <a href="{{ url_for('index') }}" class="nav-item {% if active_page == 'index' %}active{% endif %}">
+                    <span class="nav-icon">🏠</span><span>首页</span>
+                </a>
+                <a href="{{ url_for('define') }}" class="nav-item {% if active_page == 'define' %}active{% endif %}">
+                    <span class="nav-icon">📝</span><span>定义函数</span>
+                </a>
+                <a href="{{ url_for('derivative_page') }}" class="nav-item {% if active_page == 'derivative' %}active{% endif %}">
+                    <span class="nav-icon">📈</span><span>求导</span>
+                </a>
+                <a href="{{ url_for('integral_page') }}" class="nav-item {% if active_page == 'integral' %}active{% endif %}">
+                    <span class="nav-icon">∫</span><span>积分</span>
+                </a>
+                <a href="{{ url_for('simplify_page') }}" class="nav-item {% if active_page == 'simplify' %}active{% endif %}">
+                    <span class="nav-icon">🔧</span><span>变形</span>
+                </a>
+                <a href="{{ url_for('equation_page') }}" class="nav-item {% if active_page == 'equation' %}active{% endif %}">
+                    <span class="nav-icon">✕</span><span>方程</span>
+                </a>
+                <a href="{{ url_for('equation_system_page') }}" class="nav-item {% if active_page == 'equation_system' %}active{% endif %}">
+                    <span class="nav-icon">⊞</span><span>方程组</span>
+                </a>
+                <a href="{{ url_for('inequality_page') }}" class="nav-item {% if active_page == 'inequality' %}active{% endif %}">
+                    <span class="nav-icon">≷</span><span>不等式</span>
+                </a>
+                <a href="{{ url_for('inequality_system_page') }}" class="nav-item {% if active_page == 'inequality_system' %}active{% endif %}">
+                    <span class="nav-icon">≶</span><span>不等式组</span>
+                </a>
+                <a href="{{ url_for('help_page') }}" class="nav-item {% if active_page == 'help' %}active{% endif %}">
+                    <span class="nav-icon">❓</span><span>帮助</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <a href="{{ url_for('index') }}#download" onclick="scrollToDownload()">⬇️ 下载桌面版</a>
+                <a href="https://github.com/limingkang12345/CalculusCalculator" target="_blank">🌐 GitHub</a>
+                <a href="https://limingkang.pythonanywhere.com" target="_blank">🌍 网站</a>
+                <script>
+                    function scrollToDownload() {
+                        setTimeout(function() {
+                            var el = document.getElementById('downloadArea');
+                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 100);
+                    }
+                </script>
+            </div>
+        </aside>
+
+        <!-- 主内容 -->
+        <main class="main-content">
+            <!-- 文件操作栏 -->
+            <div class="file-actions">
+                <span class="action-label">📁 项目</span>
+                <button class="btn btn-primary" onclick="saveProject()">💾 保存</button>
+                <button class="btn btn-outline" onclick="document.getElementById('loadFileInput').click()">📂 打开</button>
+                <input type="file" id="loadFileInput" accept=".json" style="display:none" onchange="loadProject(event)">
+                <button class="btn btn-outline" onclick="clearSession()">🗑️ 重置</button>
+                <span id="statusMsg" style="margin-left:12px;font-size:13px;color:var(--text-secondary);"></span>
+            </div>
+
+            {% if error %}
+            <div class="error-message">{{ error }}</div>
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script>
+        // ─── 存档功能 ──────────────────────────────────────────
+        function saveProject() {
+            fetch('{{ url_for("save_project") }}', { method: 'POST' })
+                .then(r => r.blob())
+                .then(blob => {
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = 'project.json';
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                    showStatus('✅ 项目已保存');
+                })
+                .catch(() => showStatus('❌ 保存失败'));
+        }
+
+        function loadProject(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const form = new FormData();
+            form.append('file', file);
+            fetch('{{ url_for("load_project") }}', { method: 'POST', body: form })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        showStatus('✅ 项目已加载，刷新页面...');
+                        setTimeout(() => location.reload(), 800);
+                    } else {
+                        showStatus('❌ 加载失败: ' + data.error);
+                    }
+                })
+                .catch(() => showStatus('❌ 加载失败'));
+            event.target.value = '';
+        }
+
+        function clearSession() {
+            if (!confirm('确定要清除所有数据吗？')) return;
+            fetch('{{ url_for("clear_session") }}')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        showStatus('✅ 已清除，刷新页面...');
+                        setTimeout(() => location.reload(), 800);
+                    }
+                });
+        }
+
+        function showStatus(msg) {
+            document.getElementById('statusMsg').textContent = msg;
+            setTimeout(() => document.getElementById('statusMsg').textContent = '', 3000);
+        }
+
+        // ─── 实时渲染预览 ──────────────────────────────────────
+        function renderPreview(inputId, outputId, prefix) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            const output = document.getElementById(outputId);
+            input.addEventListener('input', function() {
+                if (this.value.trim()) {
+                    fetch('{{ url_for("api_render") }}?expr=' + encodeURIComponent(this.value))
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.success && output) {
+                                output.innerHTML = (prefix || '') + '\\(' + data.latex + '\\)';
+                                if (window.MathJax && MathJax.typesetPromise) {
+                                    MathJax.typesetPromise([output]);
+                                }
+                            }
+                        })
+                        .catch(() => {});
+                } else if (output) {
+                    output.innerHTML = '';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

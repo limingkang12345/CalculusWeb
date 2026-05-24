@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+{% block content %}
+{% set active_page = 'define' %}
+
+<div class="page-header">
+    <h2>📝 定义函数</h2>
+    <p>自定义函数，可在其他页面中直接使用函数名作为表达式</p>
+</div>
+
+<div class="function-list-container">
+    <!-- 函数列表 -->
+    <div class="card function-list">
+        <div class="card-header">📋 已定义的函数</div>
+        <div class="card-body" style="padding:0;">
+            <div class="list-items" id="functionList">
+                {% if fs %}
+                    {% for key, fn in fs.items() %}
+                    <div class="list-item" data-name="{{ fn[0] }}" onclick="selectFunction('{{ fn[0] }}')">
+                        {{ fn[0] }}({{ fn[3] }})
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="padding:20px;text-align:center;color:var(--text-secondary);font-size:14px;">
+                        暂无已定义的函数
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧功能区 -->
+    <div class="function-form">
+        <!-- 函数编辑表单 -->
+        <form class="card" onsubmit="saveFunction(event)">
+            <div class="card-header">✏️ 函数定义</div>
+            <div class="card-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>函数名称</label>
+                        <input type="text" name="name" id="funcName" placeholder="例如: f" required>
+                    </div>
+                    <div class="form-group">
+                        <label>自变量符号</label>
+                        <input type="text" name="var" id="funcVar" placeholder="例如: x" value="x">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>函数表达式</label>
+                    <input type="text" name="expr" id="funcExpr" placeholder="例如: x**2" required>
+                    <div id="funcPreview" style="margin-top:6px;"></div>
+                </div>
+                <div class="form-group">
+                    <label>定义域</label>
+                    <input type="text" name="domain" id="funcDomain" placeholder="例如: Reals" value="Reals">
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">💾 保存函数</button>
+                    <button type="button" class="btn btn-outline" onclick="editFunction()">📋 读取已有函数</button>
+                    <button type="button" class="btn btn-danger" onclick="deleteFunction()">🗑️ 删除</button>
+                </div>
+            </div>
+        </form>
+
+        <!-- 函数属性分析 -->
+        <div class="card" id="attrSection">
+            <div class="card-header">📊 函数属性分析</div>
+            <div class="card-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>属性类型</label>
+                        <select id="attrSelect" onchange="queryAttr()">
+                            <option value="0">表达式 & 定义域</option>
+                            <option value="1">值域</option>
+                            <option value="2">单调递增区间</option>
+                            <option value="3">单调递减区间</option>
+                            <option value="4">奇偶性</option>
+                            <option value="5">周期</option>
+                            <option value="6">最大值</option>
+                            <option value="7">最小值</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="display:flex;align-items:flex-end;">
+                        <button type="button" class="btn btn-primary" onclick="queryAttr()">🔍 查询</button>
+                    </div>
+                </div>
+                <div id="attrResultArea" style="display:none;">
+                    <div class="result-display">
+                        <div style="font-size:18px;" id="attrLatex"></div>
+                    </div>
+                    <div class="result-text" id="attrText"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 函数求值 -->
+        <div class="card" id="evalSection">
+            <div class="card-header">🔢 函数求值</div>
+            <div class="card-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>自变量值</label>
+                        <input type="text" id="funcVal" placeholder="例如: 0" oninput="autoEvalOnInput()">
+                    </div>
+                    <div class="form-group" style="display:flex;align-items:flex-end;">
+                        <button type="button" class="btn btn-success" onclick="queryEval()">= 求值</button>
+                    </div>
+                </div>
+                <div id="evalResultArea" style="display:none;">
+                    <div class="result-display">
+                        <div style="font-size:18px;" id="evalLatex"></div>
+                    </div>
+                    <div class="result-text" id="evalText"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ─── 当前选中的函数名 ──────────────────────────────────────
+    var currentFuncName = '';
+
+    // ─── MathJax 渲染辅助 ────────────────────────────────────
+    function renderMath(container) {
+        if (window.MathJax && MathJax.typesetPromise) {
+            MathJax.typesetPromise([container]).catch(function(err) {
+                console.warn('MathJax render error:', err);
+            });
+        } else {
+            // MathJax 尚未加载完毕，延迟重试
+            setTimeout(function() { renderMath(container); }, 300);
+        }
+    }
+
+    // ─── 表达式预览（跟随实际函数名和变量） ─────────────────────
+    function triggerExprPreview() {
+        var input = document.getElementById('funcExpr');
+        var preview = document.getElementById('funcPreview');
+        if (!input || !preview) return;
+        var val = input.value.trim();
+        if (!val) { preview.innerHTML = ''; return; }
+        var name = document.getElementById('funcName').value.trim() || 'f';
+        var v = document.getElementById('funcVar').value.trim() || 'x';
+        fetch('{{ url_for("api_render") }}?expr=' + encodeURIComponent(val))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    preview.innerHTML = name + '(' + v + ') = \\(' + data.latex + '\\)';
+                    renderMath(preview);
+                }
+            })
+            .catch(function() {});
+    }
+
+    // 输入框变化时触发预览
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('funcExpr').addEventListener('input', triggerExprPreview);
+        document.getElementById('funcName').addEventListener('input', triggerExprPreview);
+        document.getElementById('funcVar').addEventListener('input', triggerExprPreview);
+        // 自动选中第一个已定义的函数
+        var firstItem = document.querySelector('.list-item');
+        if (firstItem) {
+            selectFunction(firstItem.getAttribute('data-name'));
+        }
+    });
+
+    // 自变量值输入时自动求值
+    function autoEvalOnInput() {
+        if (currentFuncName) {
+            var val = document.getElementById('funcVal').value.trim();
+            if (val) { queryEval(); } else { clearEvalResult(); }
+        }
+    }
+
+    // ─── 显示结果 ──────────────────────────────────────────────
+    function showAttrResult(latexStr, textStr) {
+        var area = document.getElementById('attrResultArea');
+        var latexEl = document.getElementById('attrLatex');
+        var textEl = document.getElementById('attrText');
+        latexEl.innerHTML = latexStr ? '\\(' + latexStr + '\\)' : '';
+        textEl.textContent = textStr || '';
+        area.style.display = 'block';
+        if (latexStr) renderMath(latexEl);
+    }
+
+    function showEvalResult(latexStr, textStr) {
+        var area = document.getElementById('evalResultArea');
+        var latexEl = document.getElementById('evalLatex');
+        var textEl = document.getElementById('evalText');
+        latexEl.innerHTML = latexStr ? '\\(' + latexStr + '\\)' : '';
+        textEl.textContent = textStr || '';
+        area.style.display = 'block';
+        if (latexStr) renderMath(latexEl);
+    }
+
+    function clearAttrResult() {
+        document.getElementById('attrResultArea').style.display = 'none';
+        document.getElementById('attrLatex').innerHTML = '';
+        document.getElementById('attrText').textContent = '';
+    }
+
+    function clearEvalResult() {
+        document.getElementById('evalResultArea').style.display = 'none';
+        document.getElementById('evalLatex').innerHTML = '';
+        document.getElementById('evalText').textContent = '';
+    }
+
+    // ─── 查询属性（AJAX） ──────────────────────────────────────
+    function queryAttr() {
+        var name = currentFuncName;
+        if (!name) { showStatus('⚠️ 请先定义或选择一个函数'); return; }
+        var attrIdx = document.getElementById('attrSelect').value;
+        fetch('{{ url_for("api_function_attr") }}?name=' + encodeURIComponent(name) + '&attr=' + attrIdx)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    showAttrResult(data.latex, data.result);
+                } else {
+                    showAttrResult('', '查询失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(function() {
+                showAttrResult('', '请求失败');
+            });
+    }
+
+    // ─── 求值（AJAX） ──────────────────────────────────────────
+    function queryEval() {
+        var name = currentFuncName;
+        if (!name) { showStatus('⚠️ 请先定义或选择一个函数'); return; }
+        var val = document.getElementById('funcVal').value.trim();
+        if (!val) { showStatus('⚠️ 请输入自变量值'); return; }
+        fetch('{{ url_for("api_function_eval") }}?name=' + encodeURIComponent(name) + '&val=' + encodeURIComponent(val))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    showEvalResult(data.latex, data.result);
+                } else {
+                    showEvalResult('', '求值失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(function() {
+                showEvalResult('', '请求失败');
+            });
+    }
+
+    // ─── 选择函数 ──────────────────────────────────────────────
+    function selectFunction(name) {
+        currentFuncName = name;
+        fetch('{{ url_for("api_function_info") }}?name=' + encodeURIComponent(name))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.found) {
+                    document.getElementById('funcName').value = data.name;
+                    document.getElementById('funcExpr').value = data.expr;
+                    document.getElementById('funcDomain').value = data.domain;
+                    document.getElementById('funcVar').value = data.var;
+                    // 自动触发表达式预览
+                    triggerExprPreview();
+                    // 自动查询表达式&定义域 (attr=0)
+                    document.getElementById('attrSelect').value = 0;
+                    queryAttr();
+                    // 如果已有自变量值，自动求值
+                    var val = document.getElementById('funcVal').value.trim();
+                    if (val) { queryEval(); } else { clearEvalResult(); }
+                }
+            });
+        // 高亮
+        var items = document.querySelectorAll('.list-item');
+        for (var i = 0; i < items.length; i++) { items[i].classList.remove('active'); }
+        var target = document.querySelector('.list-item[data-name="' + name + '"]');
+        if (target) target.classList.add('active');
+    }
+
+    // ─── 保存函数 ──────────────────────────────────────────────
+    function saveFunction(event) {
+        event.preventDefault();
+        var name = document.getElementById('funcName').value.trim();
+        var expr = document.getElementById('funcExpr').value.trim();
+        var domain = document.getElementById('funcDomain').value.trim();
+        var var_ = document.getElementById('funcVar').value.trim();
+        if (!name || !expr) return;
+
+        var formData = new FormData();
+        formData.append('action', 'save');
+        formData.append('name', name);
+        formData.append('expr', expr);
+        formData.append('domain', domain);
+        formData.append('var', var_);
+
+        fetch('{{ url_for("define") }}', { method: 'POST', body: formData })
+            .then(function(r) { return r.text(); })
+            .then(function() {
+                // 更新列表
+                var list = document.getElementById('functionList');
+                var existing = list.querySelector('.list-item[data-name="' + name + '"]');
+                if (!existing) {
+                    // 移除"暂无"提示
+                    var emptyMsg = list.querySelector('div');
+                    if (emptyMsg && emptyMsg.textContent.indexOf('暂无') !== -1) {
+                        list.innerHTML = '';
+                    }
+                    var item = document.createElement('div');
+                    item.className = 'list-item';
+                    item.setAttribute('data-name', name);
+                    item.textContent = name + '(' + var_ + ')';
+                    item.onclick = function() { selectFunction(name); };
+                    list.insertBefore(item, list.firstChild);
+                }
+                // 选中并自动加载
+                selectFunction(name);
+                showStatus('✅ 函数 ' + name + ' 已保存');
+            })
+            .catch(function() { showStatus('❌ 保存失败'); });
+    }
+
+    // ─── 读取当前输入框中的函数 ──────────────────────────────
+    function editFunction() {
+        var name = document.getElementById('funcName').value.trim();
+        if (name) { selectFunction(name); }
+    }
+
+    // ─── 删除函数 ──────────────────────────────────────────────
+    function deleteFunction() {
+        var name = document.getElementById('funcName').value.trim();
+        if (!name || !confirm('确定要删除函数 ' + name + ' 吗？')) return;
+        var formData = new FormData();
+        formData.append('action', 'delete');
+        formData.append('name', name);
+        fetch('{{ url_for("define") }}', { method: 'POST', body: formData })
+            .then(function(r) { return r.text(); })
+            .then(function() {
+                var item = document.querySelector('.list-item[data-name="' + name + '"]');
+                if (item) item.remove();
+                currentFuncName = '';
+                document.getElementById('funcName').value = '';
+                document.getElementById('funcExpr').value = '';
+                document.getElementById('funcDomain').value = 'Reals';
+                document.getElementById('funcVar').value = 'x';
+                triggerExprPreview();
+                clearAttrResult();
+                clearEvalResult();
+                // 如果还有函数，选中第一个
+                var firstItem = document.querySelector('.list-item');
+                if (firstItem) {
+                    selectFunction(firstItem.getAttribute('data-name'));
+                } else {
+                    document.getElementById('functionList').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);font-size:14px;">暂无已定义的函数</div>';
+                }
+                showStatus('✅ 函数 ' + name + ' 已删除');
+            })
+            .catch(function() { showStatus('❌ 删除失败'); });
+    }
+</script>
+{% endblock %}

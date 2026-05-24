@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block content %}
+{% set active_page = 'derivative' %}
+
+<div class="page-header">
+    <h2>📈 求导</h2>
+    <p>计算显函数或隐函数的任意阶导数，支持指定点求值</p>
+</div>
+
+<form method="POST" class="card">
+    <div class="card-header">📝 求导设置</div>
+    <div class="card-body">
+        <div class="form-group">
+            <label>原函数表达式</label>
+            <input type="text" name="expr" id="derivExpr" placeholder="例如: x**3" value="{{ request.form.get('expr', '') }}" required>
+            <div id="derivExprPreview" style="margin-top:6px;"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>自变量</label>
+                <input type="text" name="var" value="{{ request.form.get('var', 'x') }}" placeholder="x">
+            </div>
+            <div class="form-group">
+                <label>求导阶数</label>
+                <input type="text" name="order" value="{{ request.form.get('order', '1') }}" placeholder="1">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="is_implicit" onchange="toggleImplicit()" {% if request.form.get('is_implicit') == 'on' %}checked{% endif %}>
+                    隐函数求导
+                </label>
+            </div>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="is_value" onchange="toggleValue()" {% if request.form.get('is_value') == 'on' %}checked{% endif %}>
+                    求具体值
+                </label>
+            </div>
+        </div>
+        <div class="form-row" id="implicitRow" style="{% if request.form.get('is_implicit') != 'on' %}display:none;{% endif %}">
+            <div class="form-group">
+                <label>因变量</label>
+                <input type="text" name="dep_var" id="depVar" value="{{ request.form.get('dep_var', 'y') }}" placeholder="y">
+            </div>
+        </div>
+        <div class="form-row" id="valueRow" style="{% if request.form.get('is_value') != 'on' %}display:none;{% endif %}">
+            <div class="form-group">
+                <label>自变量值</label>
+                <input type="text" name="var_val" value="{{ request.form.get('var_val', '') }}" placeholder="例如: 0">
+            </div>
+        </div>
+        <div class="btn-group">
+            <button type="submit" class="btn btn-primary">🧮 计算导数</button>
+        </div>
+    </div>
+</form>
+
+{% if result_derivative %}
+<div class="card result-card">
+    <div class="card-header">📊 导函数</div>
+    <div class="card-body">
+        <div class="result-display">
+            <div style="font-size:20px;">\({{ result_derivative_latex | safe }}\)</div>
+        </div>
+        <div class="result-text">{{ result_derivative }}</div>
+    </div>
+</div>
+{% endif %}
+
+{% if result_value %}
+<div class="card result-card">
+    <div class="card-header">📍 导数值</div>
+    <div class="card-body">
+        <div class="result-display">
+            <div style="font-size:20px;">\({{ result_value_latex | safe }}\)</div>
+        </div>
+        <div class="result-text">{{ result_value }}</div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    function toggleImplicit() {
+        const cb = document.querySelector('[name="is_implicit"]');
+        document.getElementById('implicitRow').style.display = cb.checked ? 'flex' : 'none';
+    }
+    function toggleValue() {
+        const cb = document.querySelector('[name="is_value"]');
+        document.getElementById('valueRow').style.display = cb.checked ? 'flex' : 'none';
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const input = document.getElementById('derivExpr');
+        const preview = document.getElementById('derivExprPreview');
+        if (input && preview) {
+            input.addEventListener('input', function() {
+                if (this.value.trim()) {
+                    fetch('{{ url_for("api_render") }}?expr=' + encodeURIComponent(this.value))
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.success) {
+                                preview.innerHTML = 'f(x) = \\(' + data.latex + '\\)';
+                                if (window.MathJax && MathJax.typesetPromise) {
+                                    MathJax.typesetPromise([preview]);
+                                }
+                            }
+                        })
+                        .catch(() => {});
+                } else {
+                    preview.innerHTML = '';
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
