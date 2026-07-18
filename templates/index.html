@@ -1,408 +1,90 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>微积分计算器 v1.4</title>
-    <!-- MathJax CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML"></script>
-    <link rel="stylesheet" href="/static/css/style.css">
-	<link rel="icon" href="favicon.ico" type="image/x-icon">
-</head>
-<body>
-    <div class="container">
-        <!-- 标签页头 -->
-        <div class="tabs">
-            <button class="tab-button active" data-tab="home">首页</button>
-            <button class="tab-button" data-tab="dingyi">定义</button>   <!-- 新增 -->
-            <button class="tab-button" data-tab="derivative">求导</button>
-            <button class="tab-button" data-tab="integral">积分</button>
-            <button class="tab-button" data-tab="simplify">变形</button>
-            <button class="tab-button" data-tab="equation">方程</button>
-			<button class="tab-button" data-tab="fangchengzu">方程组</button>
-            <button class="tab-button" data-tab="inequality">不等式</button>
-			<button class="tab-button" data-tab="budengshizu">不等式组</button>
-            <button class="tab-button" data-tab="help">帮助</button>
-        </div>
+{% extends "base.html" %}
+{% block title %}CalculusCalculator - 微积分计算器{% endblock %}
+{% block content %}
+<div class="hero">
+    <h1>CalculusCalculator</h1>
+    <p>基于 SymPy 的在线微积分计算工具，支持求导、积分、方程求解、几何计算等</p>
+</div>
 
-        <!-- 首页内容 (保持不变) -->
-        <div id="home" class="tab-content active">
-            <div class="welcome">
-                <h1>欢迎使用微积分计算器v1.4！</h1>
-                <p>Author: Li Mingkang</p>
-                <p>Contributor: CuberAHZ</p>
-            </div>
-        </div>
-
-        <!-- ========== 新增：定义标签页 ========== -->
-        <div id="dingyi" class="tab-content">
-            <div class="section" style="display: flex; gap: 10px;">
-                <!-- 左侧函数列表 -->
-                <div class="group-box" style="width: 220px;">
-                    <div class="group-title">函数列表</div>
-                    <ul id="function-list" style="list-style: none; padding: 5px; height: 250px; overflow-y: auto; border: 1px solid #ccc;">
-                        <!-- 动态插入列表项 -->
-                    </ul>
-                </div>
-                <!-- 右侧编辑区 -->
-                <div style="flex: 1;">
-                    <!-- 函数编辑区 -->
-                    <div class="group-box">
-                        <div class="group-title">函数编辑区</div>
-                        <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: center;">
-                            <span>函数名称：</span><input type="text" id="func-name" value="f">
-                            <span>函数表达式：</span><input type="text" id="func-expr" value="x**2">
-                            <span>函数定义域：</span><input type="text" id="func-domain" value="Reals">
-                            <span>函数自变量：</span><input type="text" id="func-var" value="x">
-                        </div>
-                        <div style="margin-top: 10px; display: flex; gap: 10px;">
-                            <button id="func-save" class="action-btn" style="width: auto;">保存</button>
-                            <button id="func-delete" class="action-btn" style="width: auto;">删除</button>
-                        </div>
-                    </div>
-                    <!-- 函数属性区 -->
-                    <div class="group-box">
-                        <div class="group-title">函数属性区</div>
-                        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
-                            <select id="func-attr-select" style="width: 150px;">
-                                <option value="0">表达式&amp;定义域</option>
-                                <option value="1">值域</option>
-                                <option value="2">单调递增区间</option>
-                                <option value="3">单调递减区间</option>
-                                <option value="4">奇偶性</option>
-                                <option value="5">周期</option>
-                                <option value="6">最大值</option>
-                                <option value="7">最小值</option>
-                            </select>
-                            <input type="text" id="func-attr-str" readonly placeholder="属性字符串" style="flex: 1;">
-                        </div>
-                        <div id="func-attr-view" class="math-output" style="min-height: 60px;"></div>
-                    </div>
-                    <!-- 函数求值区 -->
-                    <div class="group-box">
-                        <div class="group-title">函数求值</div>
-                        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
-                            <span>自变量值：</span>
-                            <input type="text" id="func-eval-val" value="0" style="width: 100px;">
-                            <button id="func-eval-btn" class="action-btn" style="width: auto;">求值</button>
-                            <input type="text" id="func-eval-str" readonly placeholder="结果字符串" style="flex: 1;">
-                        </div>
-                        <div id="func-eval-view" class="math-output" style="min-height: 60px;"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 求导标签页（与之前相同，略作调整） -->
-        <div id="derivative" class="tab-content">
-            <div class="section">
-                <div class="group-box">
-                    <div class="group-title">输入表达式</div>
-                    <input type="text" id="derivative-expr" placeholder="例如: x**2 + sin(x)" value="x**2">
-                </div>
-                <div class="params-row">
-                    <div class="group-box small">
-                        <div class="group-title">自变量</div>
-                        <input type="text" id="derivative-var" value="x">
-                    </div>
-                    <div class="group-box small">
-                        <div class="group-title">因变量(仅隐函数)</div>
-                        <input type="text" id="derivative-yvar" value="y" disabled>
-                    </div>
-                    <div class="group-box small">
-                        <div class="group-title">求导次数</div>
-                        <input type="text" id="derivative-order" value="1">
-                    </div>
-                    <div class="group-box small">
-                        <div class="group-title">自变量值</div>
-                        <input type="text" id="derivative-xval" value="" disabled>
-                    </div>
-                </div>
-                <div class="checkbox-row">
-                    <label>
-                        <input type="checkbox" id="derivative-implicit"> 隐函数
-                    </label>
-                    <label>
-                        <input type="checkbox" id="derivative-specific"> 求出具体值
-                    </label>
-                </div>
-                <div class="group-box">
-                    <div class="group-title">原函数</div>
-                    <div id="derivative-original" class="math-output">\\(f(x)= \\)</div>
-                </div>
-                <div class="group-box">
-                    <div class="group-title">导函数</div>
-                    <div id="derivative-result" class="math-output">\\(f'(x)= \\)</div>
-                </div>
-                <div class="group-box">
-                    <div class="group-title">导数值</div>
-                    <div id="derivative-value" class="math-output"></div>
-                </div>
-                <button id="derivative-btn" class="action-btn">求导</button>
-            </div>
-        </div>
-
-        <!-- 积分标签页（与之前相同） -->
-        <div id="integral" class="tab-content">
-            <div class="section">
-                <div class="group-box">
-                    <div class="group-title">输入表达式</div>
-                    <input type="text" id="integral-expr" placeholder="例如: x**2" value="x**2">
-                </div>
-                <div class="params-row">
-                    <div class="group-box small">
-                        <div class="group-title">积分变量</div>
-                        <input type="text" id="integral-var" value="x">
-                    </div>
-                    <div class="group-box small">
-                        <div class="group-title">下限值</div>
-                        <input type="text" id="integral-lower" value="" disabled>
-                    </div>
-                    <div class="group-box small">
-                        <div class="group-title">上限值</div>
-                        <input type="text" id="integral-upper" value="" disabled>
-                    </div>
-                </div>
-                <div class="checkbox-row">
-                    <label>
-                        <input type="checkbox" id="integral-definite"> 定积分
-                    </label>
-                </div>
-                <div class="group-box">
-                    <div class="group-title">被积函数</div>
-                    <div id="integral-original" class="math-output">\\(f(x)= \\)</div>
-                </div>
-                <div class="group-box">
-                    <div class="group-title">原函数</div>
-                    <div id="integral-antiderivative" class="math-output">\\(F(x)= \\)</div>
-                </div>
-                <div class="group-box">
-                    <div class="group-title">定积分值</div>
-                    <div id="integral-definite-value" class="math-output"></div>
-                </div>
-                <button id="integral-btn" class="action-btn">积分</button>
-            </div>
-        </div>
-
-        <!-- 变形标签页（新增选项区域，支持主元/换元） -->
-        <div id="simplify" class="tab-content">
-            <div class="section">
-                <div class="group-box">
-                    <div class="group-title">输入表达式</div>
-                    <input type="text" id="simplify-expr" placeholder="例如: (x+1)**2" value="(x+1)**2">
-                </div>
-                <div class="group-box">
-                    <div class="group-title">变形方法</div>
-                    <select id="simplify-method">
-                        <option value="0">通用化简(simplify)</option>
-                        <option value="1">展开(expand)</option>
-                        <option value="2">因式分解(factor)</option>
-                        <option value="3">主元(collect)</option>
-                        <option value="4">通分(cancel)</option>
-                        <option value="5">分离(apart)</option>
-                        <option value="6">三角变换(trigsimp)</option>
-                        <option value="7">三角展开(expand_trig)</option>
-                        <option value="8">指数合并(powsimp)</option>
-                        <option value="9">指数展开(expand_power_exp)</option>
-                        <option value="10">对数展开(expand_log)</option>
-                        <option value="11">对数合并(logcombine)</option>
-                        <option value="12">换元</option>
-                    </select>
-                </div>
-                <!-- 选项区域 -->
-                <div class="group-box" id="simplify-options">
-                    <div class="group-title">选项</div>
-                    <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-                        <span>主元符号：</span>
-                        <input type="text" id="simplify-zhuyuan" value="x" style="width:50px;" disabled>
-                        <span>换元符号：</span>
-                        <input type="text" id="simplify-huanyuan" value="t" style="width:50px;" disabled>
-                        <span>=</span>
-                        <input type="text" id="simplify-huanyuanshi" value="x+1" style="width:200px;" disabled>
-                    </div>
-                </div>
-                <div class="group-box">
-                    <div class="group-title">原式</div>
-                    <div id="simplify-original" class="math-output">\\( \\)</div>
-                </div>
-                <div class="group-box">
-                    <div class="group-title">变形式</div>
-                    <div id="simplify-result" class="math-output">\\( \\)</div>
-                    <input type="text" id="simplify-result-text" readonly placeholder="变形结果字符串形式">
-                </div>
-                <button id="simplify-btn" class="action-btn">变形</button>
-            </div>
-        </div>
-
-        <!-- 方程标签页 -->
-        <div id="equation" class="tab-content">
-            <div class="section">
-                <div class="group-box">
-                    <div class="group-title">输入方程</div>
-                    <input type="text" id="equation-lhs" placeholder="左边表达式" value="x**2">
-                    <div style="margin:5px 0;">=</div>
-                    <input type="text" id="equation-rhs" placeholder="右边表达式" value="0">
-                </div>
-                <div class="params-row">
-                    <div class="group-box small">
-                        <div class="group-title">主元符号</div>
-                        <input type="text" id="equation-var" value="x">
-                    </div>
-                    <div class="group-box small" style="flex:2;">
-                        <div class="group-title">主元取值范围</div>
-                        <input type="text" id="equation-domain" value="Reals">
-                    </div>
-					<div class="checkbox-row">
-					<label>
-						<input type="checkbox" id="equation-ode"> 微分方程
-					</label>
-				</div>
-                </div>
-                <div class="group-box">
-                    <div class="group-title">原方程</div>
-                    <div id="equation-original" class="math-output"></div>
-                </div>
-                <div class="group-box">
-                    <div class="group-title">解集</div>
-                    <div id="equation-solution" class="math-output"></div>
-                    <input type="text" id="equation-solution-text" readonly placeholder="解集字符串形式">
-                </div>
-                <button id="equation-btn" class="action-btn">求解</button>
-            </div>
-        </div>
-		<div id="fangchengzu" class="tab-content">
-    <div class="section" style="display: flex; gap: 10px;">
-        <!-- 左侧方程列表 -->
-        <div class="group-box" style="width: 220px;">
-            <div class="group-title">方程列表</div>
-            <ul id="equation-list" style="list-style: none; padding: 5px; height: 200px; overflow-y: auto; border: 1px solid #ccc;"></ul>
-        </div>
-        <!-- 右侧编辑区 -->
-        <div style="flex: 1;">
-            <div class="group-box">
-                <div class="group-title">方程编辑</div>
-                <div style="display: grid; gap: 8px;">
-                    <input type="text" id="eq-lhs" placeholder="左边表达式" value="x + y">
-                    <div style="display: flex; align-items: center;">
-                        <span style="width: 30px;">=</span>
-                        <input type="text" id="eq-rhs" placeholder="右边表达式" value="0" style="flex:1;">
-                    </div>
-                </div>
-                <div style="margin-top: 10px; display: flex; gap: 10px;">
-                    <button id="eq-save" class="action-btn" style="width: auto;">保存</button>
-                    <button id="eq-delete" class="action-btn" style="width: auto;">删除</button>
-                </div>
-            </div>
-            <div class="group-box">
-                <div class="group-title">求解变量</div>
-                <input type="text" id="eq-vars" value="x,y" placeholder="用逗号分隔，如 x,y">
-                <button id="eq-solve" class="action-btn" style="margin-top: 10px;">求解</button>
-            </div>
-            <div class="group-box">
-                <div class="group-title">原方程</div>
-                <div id="eqsystem-original" class="math-output"></div>
-            </div>
-            <div class="group-box">
-                <div class="group-title">解集</div>
-                <div id="eqsystem-solution" class="math-output"></div>
-                <input type="text" id="eqsystem-solution-text" readonly placeholder="解集字符串形式" style="margin-top: 10px;">
-            </div>
-			</div>
-			</div>
-		</div>
-
-        <!-- 不等式标签页 -->
-        <div id="inequality" class="tab-content">
-            <div class="section">
-                <div class="group-box">
-                    <div class="group-title">输入不等式</div>
-                    <input type="text" id="inequality-lhs" placeholder="左边表达式" value="x**2">
-                    <div style="display: flex; margin:5px 0; align-items: center;">
-                        <select id="inequality-rel" style="width:80px; margin-right:10px;">
-                            <option value="!=">!=</option>
-                            <option value=">">&gt;</option>
-                            <option value=">=">&gt;=</option>
-                            <option value="<">&lt;</option>
-                            <option value="<=">&lt;=</option>
-                        </select>
-                        <input type="text" id="inequality-rhs" placeholder="右边表达式" value="0" style="flex:1;">
-                    </div>
-                </div>
-                <div class="params-row">
-                    <div class="group-box small">
-                        <div class="group-title">主元符号</div>
-                        <input type="text" id="inequality-var" value="x">
-                    </div>
-                    <div class="group-box small" style="flex:2;">
-                        <div class="group-title">主元取值范围</div>
-                        <input type="text" id="inequality-domain" value="Reals">
-                    </div>
-                </div>
-                <div class="group-box">
-                    <div class="group-title">原不等式</div>
-                    <div id="inequality-original" class="math-output"></div>
-                </div>
-                <div class="group-box">
-                    <div class="group-title">解集</div>
-                    <div id="inequality-solution" class="math-output"></div>
-                    <input type="text" id="inequality-solution-text" readonly placeholder="解集字符串形式">
-                </div>
-                <button id="inequality-btn" class="action-btn">求解</button>
-            </div>
-        </div>
-		<div id="budengshizu" class="tab-content">
-    <div class="section" style="display: flex; gap: 10px;">
-        <!-- 左侧不等式列表 -->
-        <div class="group-box" style="width: 220px;">
-            <div class="group-title">不等式列表</div>
-            <ul id="inequality-list" style="list-style: none; padding: 5px; height: 200px; overflow-y: auto; border: 1px solid #ccc;"></ul>
-        </div>
-        <!-- 右侧编辑区 -->
-        <div style="flex: 1;">
-            <div class="group-box">
-                <div class="group-title">不等式编辑</div>
-                <div style="display: grid; gap: 8px;">
-                    <input type="text" id="ineq-lhs" placeholder="左边表达式" value="x">
-                    <div style="display: flex; align-items: center; gap: 5px;">
-                        <select id="ineq-rel" style="width: 70px;">
-                            <option value="!=">!=</option>
-                            <option value=">">&gt;</option>
-                            <option value=">=">&gt;=</option>
-                            <option value="<">&lt;</option>
-                            <option value="<=">&lt;=</option>
-                        </select>
-                        <input type="text" id="ineq-rhs" placeholder="右边表达式" value="0" style="flex:1;">
-                    </div>
-                </div>
-                <div style="margin-top: 10px; display: flex; gap: 10px;">
-                    <button id="ineq-save" class="action-btn" style="width: auto;">保存</button>
-                    <button id="ineq-delete" class="action-btn" style="width: auto;">删除</button>
-                </div>
-            </div>
-            <div class="group-box">
-                <div class="group-title">求解变量</div>
-                <input type="text" id="ineq-var" value="x" placeholder="单个变量">
-                <button id="ineq-solve" class="action-btn" style="margin-top: 10px;">求解</button>
-            </div>
-            <div class="group-box">
-                <div class="group-title">原不等式</div>
-                <div id="ineqsystem-original" class="math-output"></div>
-            </div>
-            <div class="group-box">
-                <div class="group-title">解集</div>
-                <div id="ineqsystem-solution" class="math-output"></div>
-                <input type="text" id="ineqsystem-solution-text" readonly placeholder="解集字符串形式" style="margin-top: 10px;">
-            </div>
-        </div>
-		</div>
-		</div>
-
-        <!-- 帮助标签页：直接嵌入 iframe 显示 help.html -->
-        <div id="help" class="tab-content">
-            <iframe src="/static/help.html" style="width:100%; height:550px; border:none;"></iframe>
-        </div>
+<div class="card">
+    <div class="card-title">功能导航</div>
+    <div class="feature-grid">
+        <a href="{{ url_for('page_dingyi') }}" class="feature-card">
+            <h3>定义函数</h3>
+            <p>定义函数并分析值域、单调性、奇偶性等</p>
+        </a>
+        <a href="{{ url_for('page_qiudao') }}" class="feature-card">
+            <h3>求导</h3>
+            <p>显函数/隐函数求导，支持代入求值</p>
+        </a>
+        <a href="{{ url_for('page_jifen') }}" class="feature-card">
+            <h3>积分</h3>
+            <p>不定积分与定积分计算</p>
+        </a>
+        <a href="{{ url_for('page_bianxing') }}" class="feature-card">
+            <h3>变形</h3>
+            <p>化简、展开、因式分解等13种方法</p>
+        </a>
+        <a href="{{ url_for('page_fangcheng') }}" class="feature-card">
+            <h3>方程</h3>
+            <p>方程与微分方程求解</p>
+        </a>
+        <a href="{{ url_for('page_fangchengzu') }}" class="feature-card">
+            <h3>方程组</h3>
+            <p>多方程联立求解</p>
+        </a>
+        <a href="{{ url_for('page_budengshi') }}" class="feature-card">
+            <h3>不等式</h3>
+            <p>不等式求解</p>
+        </a>
+        <a href="{{ url_for('page_budengshizu') }}" class="feature-card">
+            <h3>不等式组</h3>
+            <p>多不等式联立求解</p>
+        </a>
+        <a href="{{ url_for('page_jisuan') }}" class="feature-card">
+            <h3>计算</h3>
+            <p>多引擎数值/符号计算</p>
+        </a>
+        <a href="{{ url_for('page_dingyixiangliang') }}" class="feature-card">
+            <h3>向量运算</h3>
+            <p>二维向量定义与运算</p>
+        </a>
+        <a href="{{ url_for('page_huitu_hanshu') }}" class="feature-card">
+            <h3>函数绘图</h3>
+            <p>绘制函数图像</p>
+        </a>
+        <a href="{{ url_for('page_jiesanjiaoxing') }}" class="feature-card">
+            <h3>解三角形</h3>
+            <p>ASA/AAS/SAS/SSA/SSS 求解</p>
+        </a>
+        <a href="{{ url_for('page_dingyi_pj') }}" class="feature-card">
+            <h3>平面几何</h3>
+            <p>定义点/线/圆/三角形等几何对象</p>
+        </a>
+        <a href="{{ url_for('page_huitu_pj') }}" class="feature-card">
+            <h3>平面绘图</h3>
+            <p>绘制平面几何图形</p>
+        </a>
+        <a href="{{ url_for('page_pjjisuan') }}" class="feature-card">
+            <h3>平面计算</h3>
+            <p>32种平面几何运算</p>
+        </a>
+        <a href="{{ url_for('page_dingyi_lj') }}" class="feature-card">
+            <h3>立体几何</h3>
+            <p>定义三维点/线/面</p>
+        </a>
+        <a href="{{ url_for('page_huitu_lj') }}" class="feature-card">
+            <h3>立体绘图</h3>
+            <p>绘制三维几何图形</p>
+        </a>
+        <a href="{{ url_for('page_ljjisuan') }}" class="feature-card">
+            <h3>立体计算</h3>
+            <p>22种立体几何运算</p>
+        </a>
+        <a href="{{ url_for('page_huancun') }}" class="feature-card">
+            <h3>缓存区</h3>
+            <p>管理常用表达式</p>
+        </a>
     </div>
-
-    <script src="/static/js/script.js"></script>
-</body>
-</html>
+</div>
+{% endblock %}

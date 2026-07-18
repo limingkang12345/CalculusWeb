@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}平面绘图 - CalculusCalculator{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-title">平面几何绘图</div>
+    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem">勾选要绘制的对象</p>
+    <div class="checkbox-group" id="obj_checkboxes"></div>
+    <button class="btn" onclick="draw()" style="margin-top:1rem">绘制</button>
+    <div class="image-display" id="plot_result"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let pjs = {{ pjs | tojson }};
+
+function refreshCheckboxes() {
+    const container = document.getElementById('obj_checkboxes');
+    container.innerHTML = '';
+    for (const name in pjs) {
+        const label = document.createElement('label');
+        label.innerHTML = `<input type="checkbox" value="${name}" checked> [${pjs[name].category}] ${name}`;
+        container.appendChild(label);
+    }
+}
+
+async function draw() {
+    const checked = Array.from(document.querySelectorAll('#obj_checkboxes input:checked')).map(i => i.value);
+    if (!checked.length) { alert('请至少选择一个对象'); return; }
+    const r = await apiCall('/api/huitu_pj', { checked });
+    if (r.ok) showImage('plot_result', r.image);
+    else showError('plot_result', r.error);
+}
+
+refreshCheckboxes();
+</script>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}缓存区 - CalculusCalculator{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-title">缓存区</div>
+    <div class="form-group">
+        <label>添加表达式到缓存区</label>
+        <div class="form-row">
+            <input type="text" id="cache_input" placeholder="输入表达式">
+            <button class="btn" onclick="addCache()">添加</button>
+        </div>
+    </div>
+    <button class="btn btn-danger btn-sm" onclick="clearCache()">清空缓存区</button>
+
+    <div class="result-label" style="margin-top:1rem">缓存列表（点击复制到剪贴板）</div>
+    <ul class="item-list" id="cache_list">
+        {% for item in cache %}
+        <li onclick="copyText('{{ item }}')" data-text="{{ item }}">
+            <span>{{ item }}</span>
+            <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteCache('{{ item }}')">删除</button>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function addCache() {
+    const text = document.getElementById('cache_input').value;
+    if (!text.trim()) return;
+    const r = await apiCall('/api/huancun/add', { text });
+    if (r.ok) refreshList(r.cache);
+}
+
+async function deleteCache(text) {
+    const r = await apiCall('/api/huancun/delete', { text });
+    if (r.ok) refreshList(r.cache);
+}
+
+async function clearCache() {
+    if (!confirm('确定清空缓存区？')) return;
+    const r = await apiCall('/api/huancun/clear', {});
+    if (r.ok) refreshList([]);
+}
+
+function refreshList(cache) {
+    const list = document.getElementById('cache_list');
+    list.innerHTML = '';
+    cache.forEach(item => {
+        const li = document.createElement('li');
+        li.dataset.text = item;
+        li.innerHTML = `<span>${item}</span><button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteCache('${item.replace(/'/g, "\\'")}')">删除</button>`;
+        li.onclick = () => copyText(item);
+        list.appendChild(li);
+    });
+}
+
+function copyText(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        const old = event.currentTarget.querySelector('span');
+        const orig = old.textContent;
+        old.textContent = '已复制!';
+        setTimeout(() => { old.textContent = orig; }, 1000);
+    });
+}
+</script>
+{% endblock %}

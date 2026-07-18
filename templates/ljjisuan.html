@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}立体计算 - CalculusCalculator{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-title">立体几何计算</div>
+    <div class="form-group">
+        <label>计算方法</label>
+        <select id="method" onchange="onMethodChange()">
+            <option value="0">未选择</option>
+            <option value="1">两点距离</option>
+            <option value="2">中点坐标</option>
+            <option value="3">点到平面距离</option>
+            <option value="4">点到直线距离</option>
+            <option value="5">点在平面投影</option>
+            <option value="6">点在直线投影</option>
+            <option value="7">共面判断</option>
+            <option value="8">直线方向向量</option>
+            <option value="9">两直线交点</option>
+            <option value="10">两直线夹角</option>
+            <option value="11">平行判断(线)</option>
+            <option value="12">垂直判断(线)</option>
+            <option value="13">直线在平面投影</option>
+            <option value="14">三点求平面方程</option>
+            <option value="15">平面的法向量</option>
+            <option value="16">两平面夹角</option>
+            <option value="17">两平面交线</option>
+            <option value="18">平行判断(面)</option>
+            <option value="19">垂直判断(面)</option>
+            <option value="20">平面与直线交点</option>
+            <option value="21">四面体体积</option>
+            <option value="22">直线与平面夹角</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>参数 <span id="param_hint" style="color:var(--text-muted)"></span></label>
+        <input type="text" id="params" placeholder="英文逗号分隔">
+    </div>
+    <button class="btn" onclick="compute()">计算</button>
+    <div class="result-label" style="margin-top:1rem">计算结果</div>
+    <div class="result-box" id="result"></div>
+    <div class="result-text" id="result_text"></div>
+</div>
+
+<div class="card">
+    <div class="card-title">已定义对象</div>
+    <div id="obj_list"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let ljs = {{ ljs | tojson }};
+const hints = {
+    0:"",1:"点1名,点2名",2:"点1名,点2名",3:"点名,平面名",
+    4:"点名,直线名",5:"点名,平面名",6:"点名,直线名",
+    7:"点1名,点2名,...",8:"直线名",9:"直线1名,直线2名",
+    10:"直线1名,直线2名",11:"直线1名,直线2名",12:"直线1名,直线2名",
+    13:"直线名,平面名",14:"点1名,点2名,点3名",15:"平面名",
+    16:"平面1名,平面2名",17:"平面1名,平面2名",18:"平面1名,平面2名",
+    19:"平面1名,平面2名",20:"平面名,直线名",21:"点A名,点B名,点C名,点D名",
+    22:"直线名,平面名"
+};
+
+function onMethodChange() {
+    const m = document.getElementById('method').value;
+    document.getElementById('param_hint').textContent = hints[m] ? '(' + hints[m] + ')' : '';
+}
+
+function refreshList() {
+    const list = document.getElementById('obj_list');
+    list.innerHTML = '';
+    for (const name in ljs) {
+        const div = document.createElement('div');
+        div.style.cssText = 'display:inline-block;margin:0.25rem;padding:0.25rem 0.5rem;background:#f0f0f0;border-radius:4px;font-size:0.8rem';
+        div.textContent = `[${ljs[name].category}] ${name}`;
+        list.appendChild(div);
+    }
+}
+
+async function compute() {
+    const r = await apiCall('/api/ljjisuan', {
+        method: document.getElementById('method').value,
+        params: document.getElementById('params').value
+    });
+    if (r.ok) { renderMath('result', r.latex); showText('result_text', r.text); }
+    else showError('result', r.error);
+}
+
+refreshList();
+</script>
+{% endblock %}

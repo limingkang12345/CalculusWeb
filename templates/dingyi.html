@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}定义函数 - CalculusCalculator{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-title">定义函数</div>
+    <div class="grid-2">
+        <div>
+            <div class="form-group">
+                <label>函数名</label>
+                <input type="text" id="func_name" placeholder="如 f">
+            </div>
+            <div class="form-group">
+                <label>表达式</label>
+                <input type="text" id="func_expr" placeholder="如 x**2 + 1">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>定义域</label>
+                    <input type="text" id="func_domain" value="Reals">
+                </div>
+                <div class="form-group">
+                    <label>自变量</label>
+                    <input type="text" id="func_var" value="x">
+                </div>
+            </div>
+            <button class="btn" onclick="saveFunction()">保存</button>
+            <button class="btn btn-danger" onclick="deleteFunction()">删除</button>
+        </div>
+        <div>
+            <label>已定义函数列表</label>
+            <ul class="item-list" id="func_list"></ul>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title">函数属性分析</div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>属性类型</label>
+            <select id="attr_type">
+                <option value="0">表达式&定义域</option>
+                <option value="1">值域</option>
+                <option value="2">单调递增区间</option>
+                <option value="3">单调递减区间</option>
+                <option value="4">奇偶性</option>
+                <option value="5">周期</option>
+                <option value="6">最大值</option>
+                <option value="7">最小值</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>自变量值（求函数值，可空）</label>
+            <input type="text" id="var_val" placeholder="如 3">
+        </div>
+    </div>
+    <button class="btn" onclick="computeAttr()">计算属性</button>
+    <div class="result-label" style="margin-top:1rem">属性结果</div>
+    <div class="result-box" id="attr_result"></div>
+    <div class="result-text" id="attr_text"></div>
+    <div class="result-label" style="margin-top:1rem">函数值</div>
+    <div class="result-box" id="fval_result"></div>
+    <div class="result-text" id="fval_text"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let fs = {{ state.get('fs', {}) | tojson }};
+
+function refreshList() {
+    const list = document.getElementById('func_list');
+    list.innerHTML = '';
+    for (const k in fs) {
+        const li = document.createElement('li');
+        li.innerHTML = `<span>${fs[k][0]}(${fs[k][3]})</span>`;
+        li.onclick = () => loadFunction(k);
+        list.appendChild(li);
+    }
+}
+
+function loadFunction(name) {
+    const f = fs[name];
+    if (!f) return;
+    document.getElementById('func_name').value = f[0];
+    document.getElementById('func_expr').value = f[1];
+    document.getElementById('func_domain').value = f[2];
+    document.getElementById('func_var').value = f[3];
+}
+
+async function saveFunction() {
+    const data = {
+        name: document.getElementById('func_name').value,
+        expr: document.getElementById('func_expr').value,
+        domain: document.getElementById('func_domain').value,
+        var: document.getElementById('func_var').value
+    };
+    const r = await apiCall('/api/dingyi/save', data);
+    if (r.ok) { fs = r.fs; refreshList(); }
+    else showError('attr_result', r.error);
+}
+
+async function deleteFunction() {
+    const name = document.getElementById('func_name').value;
+    const r = await apiCall('/api/dingyi/delete', { name });
+    if (r.ok) { fs = r.fs; refreshList(); }
+    else showError('attr_result', r.error);
+}
+
+async function computeAttr() {
+    const data = {
+        expr: document.getElementById('func_expr').value,
+        var: document.getElementById('func_var').value,
+        domain: document.getElementById('func_domain').value,
+        attr: document.getElementById('attr_type').value,
+        var_val: document.getElementById('var_val').value
+    };
+    const r = await apiCall('/api/dingyi/attr', data);
+    if (r.ok) {
+        renderMath('attr_result', r.latex);
+        showText('attr_text', r.text);
+        renderMath('fval_result', r.f_value_latex);
+        showText('fval_text', r.f_value);
+    } else {
+        showError('attr_result', r.error);
+    }
+}
+
+bindEnterKey('func_name', 'saveFunction_btn');
+refreshList();
+</script>
+{% endblock %}

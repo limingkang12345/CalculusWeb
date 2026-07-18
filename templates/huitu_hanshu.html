@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}函数绘图 - CalculusCalculator{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-title">函数绘图</div>
+    <div class="form-group">
+        <label>输入方式</label>
+        <label><input type="radio" name="mode" value="expr" checked onchange="toggleMode()"> 直接输入表达式</label>
+        <label><input type="radio" name="mode" value="func" onchange="toggleMode()"> 选择已定义函数</label>
+    </div>
+    <div id="expr_input">
+        <div class="form-group">
+            <label>表达式</label>
+            <input type="text" id="expr" placeholder="如 sin(x)">
+        </div>
+    </div>
+    <div id="func_input" style="display:none">
+        <div class="form-group">
+            <label>选择函数</label>
+            <select id="func">
+                {% for name, v in fs.items() %}
+                <option value="{{ name }}({{ v[3] }})">{{ name }}({{ v[3] }})</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>定义域左端</label>
+            <input type="text" id="left" value="-10">
+        </div>
+        <div class="form-group">
+            <label>定义域右端</label>
+            <input type="text" id="right" value="10">
+        </div>
+    </div>
+    <button class="btn" onclick="drawFunction()">绘制</button>
+    <div class="image-display" id="plot_result"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function toggleMode() {
+    const mode = document.querySelector('input[name="mode"]:checked').value;
+    document.getElementById('expr_input').style.display = mode == 'expr' ? 'block' : 'none';
+    document.getElementById('func_input').style.display = mode == 'func' ? 'block' : 'none';
+}
+
+async function drawFunction() {
+    const mode = document.querySelector('input[name="mode"]:checked').value;
+    const data = {
+        left: document.getElementById('left').value,
+        right: document.getElementById('right').value
+    };
+    if (mode == 'expr') data.expr = document.getElementById('expr').value;
+    else data.func = document.getElementById('func').value;
+    const r = await apiCall('/api/huitu_hanshu', data);
+    if (r.ok) showImage('plot_result', r.image);
+    else showError('plot_result', r.error);
+}
+</script>
+{% endblock %}

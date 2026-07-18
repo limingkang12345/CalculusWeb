@@ -1,2 +1,5 @@
-Flask==2.3.3
-sympy==1.14.0
+Flask>=3.0.0
+sympy>=1.14.0
+numpy>=1.26.0
+matplotlib>=3.8.0
+latex2sympy2>=1.9.1

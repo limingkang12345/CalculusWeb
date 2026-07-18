@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}计算 - CalculusCalculator{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-title">计算</div>
+    <div class="form-group">
+        <label>表达式</label>
+        <input type="text" id="expr" placeholder="如 2**100 或 sin(pi/4)">
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>计算引擎</label>
+            <select id="engine" onchange="onEngineChange()">
+                <option value="0">Python内置引擎</option>
+                <option value="1">Mpmath高精度引擎</option>
+                <option value="2">Sympy符号引擎</option>
+                <option value="3">Latex代码生成引擎</option>
+            </select>
+        </div>
+        <div class="form-group" id="jingdu_group" style="display:none">
+            <label>精度（小数位）</label>
+            <input type="text" id="jingdu" value="50">
+        </div>
+    </div>
+    <button class="btn" onclick="doCompute()">计算</button>
+    <div class="result-label" style="margin-top:1rem">计算结果</div>
+    <div class="result-box" id="result"></div>
+    <div class="result-text" id="result_text"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function onEngineChange() {
+    document.getElementById('jingdu_group').style.display =
+        document.getElementById('engine').value == 1 ? 'block' : 'none';
+}
+
+async function doCompute() {
+    const r = await apiCall('/api/jisuan', {
+        expr: document.getElementById('expr').value,
+        engine: document.getElementById('engine').value,
+        jingdu: document.getElementById('jingdu').value
+    });
+    if (r.ok) {
+        renderMath('result', r.latex);
+        showText('result_text', r.text);
+    } else {
+        showError('result', r.error);
+    }
+}
+</script>
+{% endblock %}

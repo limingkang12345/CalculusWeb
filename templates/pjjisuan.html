@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}平面计算 - CalculusCalculator{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-title">平面几何计算</div>
+    <div class="form-group">
+        <label>计算方法</label>
+        <select id="method" onchange="onMethodChange()">
+            <option value="0">未选择</option>
+            <option value="1">两点距离</option>
+            <option value="2">中点坐标</option>
+            <option value="3">共线判断</option>
+            <option value="4">平移变换</option>
+            <option value="5">旋转变换</option>
+            <option value="6">反射变换</option>
+            <option value="7">直线方程</option>
+            <option value="8">直线斜率</option>
+            <option value="9">两直线交点</option>
+            <option value="10">点到直线距离</option>
+            <option value="11">两直线夹角</option>
+            <option value="12">平行判断</option>
+            <option value="13">垂直判断</option>
+            <option value="14">圆心坐标</option>
+            <option value="15">圆半径</option>
+            <option value="16">圆面积</option>
+            <option value="17">圆周长</option>
+            <option value="18">两圆交点</option>
+            <option value="19">圆切线方程</option>
+            <option value="20">三角形面积</option>
+            <option value="21">三角形周长</option>
+            <option value="22">三角形外心</option>
+            <option value="23">三角形外接圆半径</option>
+            <option value="24">三角形内心</option>
+            <option value="25">三角形内切圆半径</option>
+            <option value="26">三角形重心</option>
+            <option value="27">三角形垂心</option>
+            <option value="28">直角三角形判断</option>
+            <option value="29">等腰三角形判断</option>
+            <option value="30">等边三角形判断</option>
+            <option value="31">多边形面积</option>
+            <option value="32">多边形周长</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>参数 <span id="param_hint" style="color:var(--text-muted)"></span></label>
+        <input type="text" id="params" placeholder="英文逗号分隔">
+    </div>
+    <button class="btn" onclick="compute()">计算</button>
+    <div class="result-label" style="margin-top:1rem">计算结果</div>
+    <div class="result-box" id="result"></div>
+    <div class="result-text" id="result_text"></div>
+</div>
+
+<div class="card">
+    <div class="card-title">已定义对象</div>
+    <div id="obj_list"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let pjs = {{ pjs | tojson }};
+const hints = {
+    0:"",1:"点1名,点2名",2:"点1名,点2名",3:"点1名,点2名,...",
+    4:"点名,dx,dy",5:"点名,弧度,旋转中心名",6:"点名,直线名",
+    7:"点1名,点2名",8:"点1名,点2名",9:"直线1名,直线2名",
+    10:"点名,直线名",11:"直线1名,直线2名",12:"直线1名,直线2名",
+    13:"直线1名,直线2名",14:"圆名",15:"圆名",16:"圆名",17:"圆名",
+    18:"圆1名,圆2名",19:"点名,圆名",20:"三角形名",21:"三角形名",
+    22:"三角形名",23:"三角形名",24:"三角形名",25:"三角形名",
+    26:"三角形名",27:"三角形名",28:"三角形名",29:"三角形名",
+    30:"三角形名",31:"顶点1名,顶点2名,...",32:"顶点1名,顶点2名,..."
+};
+
+function onMethodChange() {
+    const m = document.getElementById('method').value;
+    document.getElementById('param_hint').textContent = hints[m] ? '(' + hints[m] + ')' : '';
+}
+
+function refreshList() {
+    const list = document.getElementById('obj_list');
+    list.innerHTML = '';
+    for (const name in pjs) {
+        const div = document.createElement('div');
+        div.style.cssText = 'display:inline-block;margin:0.25rem;padding:0.25rem 0.5rem;background:#f0f0f0;border-radius:4px;font-size:0.8rem';
+        div.textContent = `[${pjs[name].category}] ${name}`;
+        list.appendChild(div);
+    }
+}
+
+async function compute() {
+    const r = await apiCall('/api/pjjisuan', {
+        method: document.getElementById('method').value,
+        params: document.getElementById('params').value
+    });
+    if (r.ok) { renderMath('result', r.latex); showText('result_text', r.text); }
+    else showError('result', r.error);
+}
+
+refreshList();
+</script>
+{% endblock %}

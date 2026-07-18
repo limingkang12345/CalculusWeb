@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}不等式 - CalculusCalculator{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-title">不等式求解</div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>左式</label>
+            <input type="text" id="lhs" placeholder="如 x**2 - 4">
+        </div>
+        <div class="form-group" style="max-width:100px">
+            <label>不等号</label>
+            <select id="op">
+                <option value="!=">!=</option>
+                <option value=">">&gt;</option>
+                <option value=">=">&gt;=</option>
+                <option value="<">&lt;</option>
+                <option value="<=">&lt;=</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>右式</label>
+            <input type="text" id="rhs" value="0">
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>主元符号</label>
+            <input type="text" id="zhuyuan" value="x">
+        </div>
+        <div class="form-group">
+            <label>取值范围</label>
+            <input type="text" id="domain" value="Reals">
+        </div>
+    </div>
+    <button class="btn" onclick="solveInequality()">求解</button>
+    <div class="result-label" style="margin-top:1rem">求解结果</div>
+    <div class="result-box" id="result"></div>
+    <div class="result-text" id="result_text"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function solveInequality() {
+    const r = await apiCall('/api/budengshi', {
+        lhs: document.getElementById('lhs').value,
+        rhs: document.getElementById('rhs').value,
+        op: document.getElementById('op').value,
+        zhuyuan: document.getElementById('zhuyuan').value,
+        domain: document.getElementById('domain').value
+    });
+    if (r.ok) {
+        renderMath('result', r.latex);
+        showText('result_text', r.text);
+    } else {
+        showError('result', r.error);
+    }
+}
+</script>
+{% endblock %}

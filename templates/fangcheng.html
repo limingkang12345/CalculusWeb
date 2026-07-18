@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}方程 - CalculusCalculator{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-title">方程求解</div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>左式</label>
+            <input type="text" id="lhs" placeholder="如 x**2 - 4">
+        </div>
+        <div class="form-group">
+            <label>右式</label>
+            <input type="text" id="rhs" value="0">
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>主元符号</label>
+            <input type="text" id="zhuyuan" value="x">
+        </div>
+        <div class="form-group">
+            <label>取值范围</label>
+            <input type="text" id="domain" value="Reals">
+        </div>
+    </div>
+    <div class="checkbox-group" style="margin-bottom:1rem">
+        <label><input type="checkbox" id="is_weifen" onchange="onWeifenChange()"> 微分方程</label>
+    </div>
+    <button class="btn" onclick="solveEquation()">求解</button>
+
+    <div class="result-label" style="margin-top:1rem">求解结果</div>
+    <div class="result-box" id="result"></div>
+    <div class="result-text" id="result_text"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function onWeifenChange() {
+    const checked = document.getElementById('is_weifen').checked;
+    document.getElementById('zhuyuan').value = checked ? 'f(x)' : 'x';
+    document.getElementById('zhuyuan').disabled = checked;
+    document.getElementById('domain').value = checked ? '' : 'Reals';
+    document.getElementById('domain').disabled = checked;
+}
+
+async function solveEquation() {
+    const data = {
+        lhs: document.getElementById('lhs').value,
+        rhs: document.getElementById('rhs').value,
+        zhuyuan: document.getElementById('zhuyuan').value,
+        domain: document.getElementById('domain').value,
+        is_weifen: document.getElementById('is_weifen').checked
+    };
+    const r = await apiCall('/api/fangcheng', data);
+    if (r.ok) {
+        renderMath('result', r.latex);
+        showText('result_text', r.text);
+    } else {
+        showError('result', r.error);
+    }
+}
+</script>
+{% endblock %}

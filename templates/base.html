@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CalculusCalculator{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <a href="{{ url_for('index') }}">CalculusCalculator</a>
+        </div>
+        <div class="navbar-menu">
+            <div class="dropdown">
+                <button class="dropbtn">微积分</button>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('page_dingyi') }}">定义函数</a>
+                    <a href="{{ url_for('page_qiudao') }}">求导</a>
+                    <a href="{{ url_for('page_jifen') }}">积分</a>
+                    <a href="{{ url_for('page_bianxing') }}">变形</a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <button class="dropbtn">求解</button>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('page_fangcheng') }}">方程</a>
+                    <a href="{{ url_for('page_fangchengzu') }}">方程组</a>
+                    <a href="{{ url_for('page_budengshi') }}">不等式</a>
+                    <a href="{{ url_for('page_budengshizu') }}">不等式组</a>
+                    <a href="{{ url_for('page_jiesanjiaoxing') }}">解三角形</a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <button class="dropbtn">计算</button>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('page_jisuan') }}">计算</a>
+                    <a href="{{ url_for('page_dingyixiangliang') }}">向量运算</a>
+                    <a href="{{ url_for('page_pjjisuan') }}">平面计算</a>
+                    <a href="{{ url_for('page_ljjisuan') }}">立体计算</a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <button class="dropbtn">几何</button>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('page_dingyi_pj') }}">平面几何定义</a>
+                    <a href="{{ url_for('page_huitu_pj') }}">平面绘图</a>
+                    <a href="{{ url_for('page_dingyi_lj') }}">立体几何定义</a>
+                    <a href="{{ url_for('page_huitu_lj') }}">立体绘图</a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <button class="dropbtn">绘图</button>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('page_huitu_hanshu') }}">函数绘图</a>
+                </div>
+            </div>
+            <a href="{{ url_for('page_huancun') }}" class="nav-link">缓存区</a>
+        </div>
+        <div class="navbar-actions">
+            <button onclick="exportProject()" class="btn btn-sm">存档</button>
+            <label class="btn btn-sm btn-file">
+                读档
+                <input type="file" accept=".json" onchange="importProject(this)" style="display:none">
+            </label>
+        </div>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
