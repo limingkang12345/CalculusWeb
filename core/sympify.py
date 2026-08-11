@@ -1,19 +1,23 @@
-import re
+﻿import re
 from sympy import sympify as sympify_sympy
-from sympy import Symbol, simplify, radsimp
+from sympy import Symbol, simplify, radsimp, Basic as SympyBasic
 from sympy.core.sympify import SympifyError
-from latex2sympy2 import latex2sympy
-
+from latex2sympy2_extended import latex2sympy
 
 def _preprocess_func_calls(expr_str, fs):
-    """预处理函数调用表达式，将 f(arg) 形式替换为函数体表达式"""
+    """预处理函数调用表达式，将 f(arg) 形式替换为函数体表达式
+    例如 fs={"f":["f","x**2","Reals","x"]} 时，"f(3)" 被替换为 "(3**2)"
+    支持嵌套调用如 f(g(2)) 和同时使用 f(2)+f(3)
+    """
     if not fs:
         return expr_str
 
+    # 按函数名长度降序排列，避免短名称优先于长名称匹配
     func_names = sorted(fs.keys(), key=len, reverse=True)
     result = expr_str
 
     while True:
+        # 查找最左侧的函数调用（使用 \b 避免 sqrt( 中的 t( 被误匹配）
         best_pos = len(result)
         best_func = None
         for func_name in func_names:
@@ -26,6 +30,7 @@ def _preprocess_func_calls(expr_str, fs):
         if best_func is None:
             break
 
+        # 查找匹配的右括号（支持嵌套括号）
         start_arg = best_pos + len(best_func) + 1
         depth = 1
         end_arg = start_arg
@@ -37,12 +42,13 @@ def _preprocess_func_calls(expr_str, fs):
             end_arg += 1
 
         if depth != 0:
-            break
+            break  # 括号不匹配，跳过
 
         arg_str = result[start_arg:end_arg - 1]
         var_name = fs[best_func][3]
         body_str = fs[best_func][1]
 
+        # 在函数体中将自变量替换为参数值，带 \b 避免部分匹配（如 x0 被误替换）
         expanded_body = re.sub(r'\b' + re.escape(var_name) + r'\b', f'({arg_str})', body_str)
         replacement = f'({expanded_body})'
         result = result[:best_pos] + replacement + result[end_arg:]
@@ -50,32 +56,43 @@ def _preprocess_func_calls(expr_str, fs):
     return result
 
 
-def sympify(expr, fs, locals=None, is_simplify=False, is_rationalize=False):
-    """处理输入的表达式，返回 SymPy 表达式对象或错误字符串"""
-    if expr == "":
-        return Symbol("", latex="")
-    if expr[0] == "$":
+def sympify(expr, fs, locals = None, is_simplify = False, is_rationalize = False):
+    # 用于处理输入的表达式
+    # expr(str):符合Python和Sympy规范的表达式或Latex代码
+    # fs(dict):函数字典
+    # locals(dict):自变量映射
+    # is_simplify(bool):是否自动化简
+    # is_rationalize(bool):是否对结果执行分母有理化
+    # return:处理后的表达式
+
+    # 处理 expr 已经是 sympy 表达式对象的情况（例如 _py_func_value 在 arg 为空
+    # 时直接返回 sympy 表达式）。对其做下标访问或字符串解析都会出错，
+    # 因此这里直接按需求后处理后返回。
+    if isinstance(expr, SympyBasic):
+        result = radsimp(expr) if is_rationalize else expr
+        return result
+    if expr == "":  return Symbol("", latex="")
+    if expr[0]=="$":
         try:
             expr = latex2sympy(expr[1:])
-        except Exception:
+        except Exception as e:
             try:
                 expr = _preprocess_func_calls(expr, fs)
                 expr = sympify_sympy(expr)
-            except Exception:
+            except:
                 return "不规范的表达式输入"
     else:
         expr = _preprocess_func_calls(expr, fs)
     try:
-        origin_expr = sympify_sympy(expr, locals=locals)
+        origin_expr = sympify_sympy(expr, locals = locals)
     except SympifyError:
         return "不规范的表达式输入"
     for f in fs.keys():
         if Symbol(f) in origin_expr.free_symbols:
-            try:
-                origin_expr = origin_expr.subs(f, sympify_sympy(fs[f][1], locals=locals))
-            except SympifyError:
-                return "错误的函数定义"
-    result = sympify_sympy(simplify(origin_expr), locals=locals) if is_simplify else sympify_sympy(origin_expr, locals=locals)
+            try:  origin_expr = origin_expr.subs(f, sympify_sympy(fs[f][1], locals = locals))
+            except SympifyError:  return "错误的函数定义"
+    result = sympify_sympy(simplify(origin_expr), locals = locals) if is_simplify else sympify_sympy(origin_expr, locals = locals)
     if is_rationalize:
         result = radsimp(result)
+
     return result
