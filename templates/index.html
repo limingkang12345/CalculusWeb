@@ -1,90 +1,86 @@
-{% extends "base.html" %}
-{% block title %}CalculusCalculator - 微积分计算器{% endblock %}
-{% block content %}
-<div class="hero">
-    <h1>CalculusCalculator</h1>
-    <p>基于 SymPy 的在线微积分计算工具，支持求导、积分、方程求解、几何计算等</p>
-</div>
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>微积分计算器 (Web)</title>
+  <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <!-- MathLive 公式编辑器（页面底部虚拟键盘） -->
+  <link rel="stylesheet" href="/static/mathlive/mathlive-fonts.css">
+  <link rel="stylesheet" href="/static/mathlive/mathlive-static.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' },
+      startup: { typeset: false }
+    };
+  </script>
+  <script src="/static/mathjax.js" id="MathJax-script" async></script>
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div class="brand">
+        <span class="logo">∫</span>
+        <span class="brand-text" data-i18n="appTitle">微积分计算器</span>
+      </div>
+      <nav id="nav"></nav>
+      <div class="sidebar-foot">
+        <span data-i18n="webVersion">Web 版本 · Python 计算内核</span>
+        <div class="side-links">
+          <a href="https://github.com/limingkang12345/CalculusCalculator" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://limingkang12345.github.io/CalculusCalculator/" target="_blank" rel="noopener">文档</a>
+          <a href="https://pypi.org/project/CalculusCalculator/" target="_blank" rel="noopener">PyPI</a>
+        </div>
+      </div>
+    </aside>
+    <main id="main">
+      <div id="toolbar">
+        <button id="menuBtn" class="tool-btn" title="菜单">☰</button>
+        <div class="toolbar-links">
+          <a href="https://github.com/limingkang12345/CalculusCalculator" target="_blank" rel="noopener" title="GitHub"><span class="link-ico">GH</span></a>
+          <a href="https://limingkang12345.github.io/CalculusCalculator/" target="_blank" rel="noopener" title="在线文档"><span class="link-ico">DOC</span></a>
+          <a href="https://pypi.org/project/CalculusCalculator/" target="_blank" rel="noopener" title="PyPI"><span class="link-ico">Py</span></a>
+        </div>
+        <button id="themeBtn" class="tool-btn" title="切换主题">🌙</button>
+        <button id="langBtn" class="tool-btn">EN</button>
+      </div>
+      <div id="content"></div>
+    </main>
+  </div>
 
-<div class="card">
-    <div class="card-title">功能导航</div>
-    <div class="feature-grid">
-        <a href="{{ url_for('page_dingyi') }}" class="feature-card">
-            <h3>定义函数</h3>
-            <p>定义函数并分析值域、单调性、奇偶性等</p>
-        </a>
-        <a href="{{ url_for('page_qiudao') }}" class="feature-card">
-            <h3>求导</h3>
-            <p>显函数/隐函数求导，支持代入求值</p>
-        </a>
-        <a href="{{ url_for('page_jifen') }}" class="feature-card">
-            <h3>积分</h3>
-            <p>不定积分与定积分计算</p>
-        </a>
-        <a href="{{ url_for('page_bianxing') }}" class="feature-card">
-            <h3>变形</h3>
-            <p>化简、展开、因式分解等13种方法</p>
-        </a>
-        <a href="{{ url_for('page_fangcheng') }}" class="feature-card">
-            <h3>方程</h3>
-            <p>方程与微分方程求解</p>
-        </a>
-        <a href="{{ url_for('page_fangchengzu') }}" class="feature-card">
-            <h3>方程组</h3>
-            <p>多方程联立求解</p>
-        </a>
-        <a href="{{ url_for('page_budengshi') }}" class="feature-card">
-            <h3>不等式</h3>
-            <p>不等式求解</p>
-        </a>
-        <a href="{{ url_for('page_budengshizu') }}" class="feature-card">
-            <h3>不等式组</h3>
-            <p>多不等式联立求解</p>
-        </a>
-        <a href="{{ url_for('page_jisuan') }}" class="feature-card">
-            <h3>计算</h3>
-            <p>多引擎数值/符号计算</p>
-        </a>
-        <a href="{{ url_for('page_dingyixiangliang') }}" class="feature-card">
-            <h3>向量运算</h3>
-            <p>二维向量定义与运算</p>
-        </a>
-        <a href="{{ url_for('page_huitu_hanshu') }}" class="feature-card">
-            <h3>函数绘图</h3>
-            <p>绘制函数图像</p>
-        </a>
-        <a href="{{ url_for('page_jiesanjiaoxing') }}" class="feature-card">
-            <h3>解三角形</h3>
-            <p>ASA/AAS/SAS/SSA/SSS 求解</p>
-        </a>
-        <a href="{{ url_for('page_dingyi_pj') }}" class="feature-card">
-            <h3>平面几何</h3>
-            <p>定义点/线/圆/三角形等几何对象</p>
-        </a>
-        <a href="{{ url_for('page_huitu_pj') }}" class="feature-card">
-            <h3>平面绘图</h3>
-            <p>绘制平面几何图形</p>
-        </a>
-        <a href="{{ url_for('page_pjjisuan') }}" class="feature-card">
-            <h3>平面计算</h3>
-            <p>32种平面几何运算</p>
-        </a>
-        <a href="{{ url_for('page_dingyi_lj') }}" class="feature-card">
-            <h3>立体几何</h3>
-            <p>定义三维点/线/面</p>
-        </a>
-        <a href="{{ url_for('page_huitu_lj') }}" class="feature-card">
-            <h3>立体绘图</h3>
-            <p>绘制三维几何图形</p>
-        </a>
-        <a href="{{ url_for('page_ljjisuan') }}" class="feature-card">
-            <h3>立体计算</h3>
-            <p>22种立体几何运算</p>
-        </a>
-        <a href="{{ url_for('page_huancun') }}" class="feature-card">
-            <h3>缓存区</h3>
-            <p>管理常用表达式</p>
-        </a>
+  <!-- 公式预览浮层：点击输入框时在其上方浮现 -->
+  <div id="preview-pop" hidden>
+    <div id="preview-pop-body"></div>
+  </div>
+
+  <!-- MathLive 虚拟键盘（固定在页面底部，类似软键盘） -->
+  <div id="mathkb" hidden>
+    <div class="mathkb-head">
+      <span id="mathkb-title">公式输入</span>
+      <span class="mathkb-actions">
+        <button class="ghost small" id="mathkbClear">清空</button>
+        <button class="primary small" id="mathkbInsert">插入</button>
+        <button class="ghost small" id="mathkbClose">收起</button>
+      </span>
     </div>
-</div>
-{% endblock %}
+    <math-field id="mf" locale="zh-CN"
+                placeholder="在此输入公式，例如 x^2 + y^2 = 1"></math-field>
+    <div class="mathkb-foot">
+      <span>LaTeX：</span><code id="mathkbLatex">（空）</code>
+    </div>
+  </div>
+
+  <!-- 紧贴 MathLive 虚拟键盘顶部的"收起"按钮（键盘出现时才显示） -->
+  <button id="kbCollapse" class="ghost" type="button" hidden>收起键盘</button>
+
+  <div id="toast"></div>
+  <script src="/static/mathlive/mathlive.min.js"></script>
+  <script src="/static/js/i18n.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

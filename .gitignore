@@ -1,1 +1,19 @@
-__pycache__
+# 桌面版源码（本项目仅保留 Web 版）
+src/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+env/
+
+# 环境与工具
+.vscode/
+.idea/
+
+# 临时文件
+_*.py
+*.log
