@@ -238,12 +238,16 @@ def equation():
     d = request.get_json(force=True, silent=True) or {}
     st = current_state()
     try:
-        lhs = S(d.get("lhs", ""), st.fs)
-        rhs = S(d.get("rhs", ""), st.fs)
-        eq = Eq(lhs, rhs)
         if d.get("de"):
+            # 微分方程：不替换已定义函数，f(x) 是未知函数而非已保存函数
+            lhs = S(d.get("lhs", ""), {})
+            rhs = S(d.get("rhs", ""), {})
+            eq = Eq(lhs, rhs)
             res = solve_weifenfangcheng(eq, d.get("var", "f(x)"), st.fs)
         else:
+            lhs = S(d.get("lhs", ""), st.fs)
+            rhs = S(d.get("rhs", ""), st.fs)
+            eq = Eq(lhs, rhs)
             res = solve_fangcheng(eq, d.get("var", "x"), d.get("domain", "Reals"), st.fs)
         return j(ok(to_latex(res)))
     except Exception as e:  # noqa: BLE001
@@ -302,16 +306,19 @@ def latex2expr():
     桌面版行为：拿到 MathLive 的 LaTeX 后执行 sympify('$' + latex)，
     再把 str(expr) 填回输入框 —— 即"原生 Sympy 表达式"。本接口复刻该行为，
     供页面底部 MathLive 虚拟键盘的"插入"按钮调用。
+    
+    使用空函数字典 {} 避免将 LaTeX 中的未知函数（如微分方程中的 f(x)）
+    误替换为已定义的保存函数。
     """
     d = request.get_json(force=True, silent=True) or {}
-    st = current_state()
     try:
         text = (d.get("latex") or "").strip()
         if not text:
             return j(err("LaTeX 内容为空"))
         if not text.startswith("$"):
             text = "$" + text
-        expr = S(text, st.fs)
+        # 使用空函数字典，避免将 LaTeX 中的函数误替换为已保存函数
+        expr = S(text, {})
         # ok(): latex 供前端预览渲染；text 为原生 SymPy 表达式，插入输入框
         return j(ok(to_latex(expr), text=str(expr)))
     except Exception as e:  # noqa: BLE001

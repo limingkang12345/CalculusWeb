@@ -33,7 +33,7 @@
         <span data-i18n="webVersion">Web 版本 · Python 计算内核</span>
         <div class="side-links">
           <a href="https://github.com/limingkang12345/CalculusCalculator" target="_blank" rel="noopener">GitHub</a>
-          <a href="https://limingkang12345.github.io/CalculusCalculator/" target="_blank" rel="noopener">文档</a>
+          <a href="https://limingkang12345.github.io/CalculusCalculator/" target="_blank" rel="noopener" data-i18n="docs">文档</a>
           <a href="https://pypi.org/project/CalculusCalculator/" target="_blank" rel="noopener">PyPI</a>
         </div>
       </div>
@@ -68,10 +68,10 @@
         <button class="ghost small" id="mathkbClose">收起</button>
       </span>
     </div>
-    <math-field id="mf" locale="zh-CN"
+    <math-field id="mf" locale="zh-CN" inputmode="none"
                 placeholder="在此输入公式，例如 x^2 + y^2 = 1"></math-field>
     <div class="mathkb-foot">
-      <span>LaTeX：</span><code id="mathkbLatex">（空）</code>
+      <span data-i18n="latexLabel">LaTeX：</span><code id="mathkbLatex">（空）</code>
     </div>
   </div>
 

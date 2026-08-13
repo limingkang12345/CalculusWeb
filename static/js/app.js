@@ -63,7 +63,7 @@ function showImage(boxId, url) {
 function refreshState() {
   return apiGet("/api/state").then((d) => {
     if (d.ok) STATE = d;
-  });
+  }).catch(() => {});
 }
 
 // ============================ 公式输入格式（与桌面端一致） ============================
@@ -176,8 +176,9 @@ function openMathKB(btn) {
   if (!kb) return;
   if (btn && btn.getAttribute("data-target")) {
     lastFocusedInput = btn.getAttribute("data-target");
-    const t = $(lastFocusedInput);
-    if (t) { t.focus(); updatePreviewPop(lastFocusedInput); }
+    // 移动端不聚焦文本输入框，避免系统键盘覆盖 MathLive 键盘
+    // 仅保存目标输入框ID，后续插入时使用
+    updatePreviewPop(lastFocusedInput);
   }
   kb.hidden = false;                      // 先让容器可见（math-field 需要布局）
   const mf = $("#mf");
@@ -189,7 +190,7 @@ function openMathKB(btn) {
   const title = $("#mathkb-title");
   if (title) title.textContent = (lastFocusedInput ? "#" + lastFocusedInput + " · " : "") + t("mathInput");
   const out = $("#mathkbLatex");
-  if (out && mf) out.textContent = mf.value || "（空）";
+  if (out && mf) out.textContent = mf.value || t("empty");
   // 延迟触发：等待 custom element upgrade 与 MathLive 内部连接完成后再显示，
   // 内置自动重试直到键盘可见（过早调用 show() 会抑制自动弹出）。
   _kbRetries = 0;
@@ -200,12 +201,21 @@ function closeMathKB() {
   try { if (window.mathVirtualKeyboard) window.mathVirtualKeyboard.hide(); } catch (e) {}
   const kb = $("#mathkb");
   if (kb) kb.hidden = true;
+  // 收起后重新聚焦最后使用的输入框，方便用户直接输入
+  // 使用 suppressKBOpen 防止 refocus 时再次自动弹出 MathLive
+  if (lastFocusedInput) {
+    const t = $(lastFocusedInput);
+    if (t) {
+      suppressKBOpen = true;
+      t.focus();
+    }
+  }
 }
 function clearMathKB() {
   const mf = $("#mf");
   if (mf) mf.value = "";
   const out = $("#mathkbLatex");
-  if (out) out.textContent = "（空）";
+  if (out) out.textContent = t("empty");
 }
 function insertMath() {
   const mf = $("#mf");
@@ -233,6 +243,29 @@ function localizeKB() {
   if (c) c.textContent = t("clear");
   if (i) i.textContent = t("hkInsert");
   if (x) x.textContent = t("hkClose");
+  const mf = $("#mf");
+  if (mf) {
+    mf.placeholder = t("mathFieldPh");
+  }
+  try {
+    if (window.MathfieldElement) MathfieldElement.locale = LANG === "en" ? "en" : "zh-CN";
+  } catch (e) {}
+}
+
+// 同步积木编辑器（iframe）的主题：调用其内部 applyBlocklyTheme 原地切换，无需重载。
+function syncBlocklyTheme() {
+  const f = $("#blocklyFrame");
+  if (f && f.contentWindow && f.contentWindow.applyBlocklyTheme) {
+    f.contentWindow.applyBlocklyTheme(THEME);
+  }
+}
+// 同步积木编辑器（iframe）的语言：语言需重载 iframe 才能生效（Blockly Msg 在加载时注入）。
+function syncBlocklyLang() {
+  const f = $("#blocklyFrame");
+  if (!f) return;
+  const base = (f.getAttribute("src") || "/blockly").split("?")[0];
+  const target = base + "?lang=" + (LANG === "en" ? "en" : "zh") + "&theme=" + THEME;
+  if (f.getAttribute("src") !== target) f.src = target;
 }
 
 // ============================ 表单构造 ============================
@@ -349,7 +382,7 @@ function card(title, inner) {
 // 示例快捷填入：点击示例按钮即可将其填入对应输入框
 function exampleChips(id, examples) {
   if (!examples || !examples.length) return "";
-  return '<div class="ex-chips"><span class="ex-chips-label">示例：</span>' +
+  return '<div class="ex-chips"><span class="ex-chips-label">' + t("示例：") + "</span>" +
     examples.map((e) =>
       '<button type="button" class="ex-chip" data-target="' + id +
       '" data-val="' + escapeHtml(e) + '" onclick="fillExample(this)">' +
@@ -366,20 +399,16 @@ function fillExample(btn) {
 }
 // 可折叠的“输入提示”卡片：内容源自 src/help.html 的输入标准（LaTeX / 数学符号 / 函数 / 分母有理化）
 function funcInputHint() {
-  return card("输入提示",
+  return card(t("输入提示"),
     '<details class="hint-box">' +
-    '<summary>如何输入表达式？（点击展开）</summary>' +
+    '<summary>' + t("hintSummary") + '</summary>' +
     '<div class="hint-body">' +
-    "<p><b>① 直接输入 LaTeX：</b>在表达式前加 <code>$</code> 即可，例如 " +
-    "<code>$\\frac{x}{2}</code>、<code>$x^{2}</code>、<code>$\\sqrt{x}</code>、<code>$\\sin{x}</code>、<code>$\\pi</code>、<code>$\\infty</code>。</p>" +
-    "<p><b>② 使用 SymPy 语法：</b>乘方 <code>x**2</code>、根号 <code>sqrt(x)</code>、绝对值 <code>abs(x)</code>、" +
-    "对数 <code>log(x)</code>（自然对数）/ <code>log(x,a)</code>、三角函数 <code>sin(x)</code> 等；" +
-    "常数 <code>pi</code>、<code>e</code>、<code>oo</code>（无穷）、<code>I</code>（虚数单位）。</p>" +
-    "<p><b>③ 使用已定义的函数：</b>先在“函数定义”页定义 <code>g(x)=x**2</code>，" +
-    "本页即可直接写 <code>g+1/g</code> 或 <code>g(3)</code> 参与运算（也支持嵌套如 <code>f(g(2))</code>）。</p>" +
-    "<p><b>④ 分母有理化：</b>结果若含根号分母，系统自动化简为最简形式，如 <code>1/sqrt(2)</code> → <code>sqrt(2)/2</code>。</p>" +
-    '<p class="hint-foot">提示：在输入框内按 <b>回车</b> 可直接计算；完整说明见 ' +
-    '<a href="https://limingkang12345.github.io/CalculusCalculator/" target="_blank" rel="noopener">在线文档</a>。</p>' +
+    "<p>" + t("hintP1") + "</p>" +
+    "<p>" + t("hintP2") + "</p>" +
+    "<p>" + t("hintP3") + "</p>" +
+    "<p>" + t("hintP4") + "</p>" +
+    '<p class="hint-foot">' + t("hintFoot") +
+    '<a href="https://limingkang12345.github.io/CalculusCalculator/" target="_blank" rel="noopener">' + t("onlineDocs") + "</a>。</p>" +
     "</div></details>"
   );
 }
@@ -395,13 +424,11 @@ function funcListHtml() {
 }
 // 函数输入准则：直接输入函数名（作为符号） vs 输入 函数(自变量值)（函数调用）
 function funcUsageHint() {
-  return card("函数输入准则",
+  return card(t("函数输入准则"),
     '<div class="hint-body" style="border-radius:10px">' +
-    "<p><b>① 直接输入函数名（作为符号参与运算）：</b>已定义 <code>g(x)=x**2</code>，则直接写 <code>g+1/g</code>，" +
-    "系统会自动带入函数表达式参与计算。</p>" +
-    "<p><b>② 输入 函数(自变量值)（以函数调用形式传参）：</b>已定义 <code>f(x)=x**2</code>，则输入 <code>f(3)</code> 自动计算 <code>3**2=9</code>；" +
-    "支持嵌套调用，如 <code>f(g(2))</code>。</p>" +
-    '<p class="hint-foot">提示：函数名需先在上方“定义函数”中保存；删除函数后，包含该函数的表达式将无法正常计算。</p>' +
+    "<p>" + t("hintFuncP1") + "</p>" +
+    "<p>" + t("hintFuncP2") + "</p>" +
+    '<p class="hint-foot">' + t("hintFuncFoot") + "</p>" +
     "</div>"
   );
 }
@@ -473,7 +500,8 @@ const TABS = [
     id: "blockly", zh: "积木编辑器", en: "Blocks", icon: "🧩", group: "top",
     html() {
       return (
-        '<iframe id="blocklyFrame" src="/blockly" title="' + t("积木编辑器") +
+        '<iframe id="blocklyFrame" src="/blockly?lang=' + (LANG === "en" ? "en" : "zh") +
+        '&theme=' + THEME + '" title="' + t("积木编辑器") +
         '" loading="lazy"></iframe>'
       );
     },
@@ -488,31 +516,30 @@ const TABS = [
     html() {
       return (
         '<div class="home-hero"><h1>' + t("appTitle") + "</h1><p>" +
-        "基于原 PySide6 桌面版的完整功能重写，计算内核为 Python（SymPy）。</p>" +
+        t("homeDesc") + "</p>" +
         '<div class="home-stats">' +
-        '<span class="home-stat">求导 · 积分 · 微分方程</span>' +
-        '<span class="home-stat">方程 · 不等式 · 变形</span>' +
-        '<span class="home-stat">平面 · 立体几何</span>' +
-        '<span class="home-stat">函数绘图 · 积木编程</span>' +
+        '<span class="home-stat">' + t("homeStat1") + '</span>' +
+        '<span class="home-stat">' + t("homeStat2") + '</span>' +
+        '<span class="home-stat">' + t("homeStat3") + '</span>' +
+        '<span class="home-stat">' + t("homeStat4") + '</span>' +
         "</div>" +
         '<div class="home-links">' +
         '<a href="https://github.com/limingkang12345/CalculusCalculator" target="_blank" rel="noopener">GitHub</a>' +
         '<a href="https://limingkang12345.github.io/CalculusCalculator/" target="_blank" rel="noopener">' + t("onlineDocs") + "</a>" +
         '<a href="https://pypi.org/project/CalculusCalculator/" target="_blank" rel="noopener">PyPI</a>' +
         "</div></div>" +
-        card("功能总览", '<div class="feature-grid">' +
-          ["求导 / 隐函数", "定积分 / 不定积分", "函数性质分析", "13 种表达式变形",
-           "方程 / 方程组", "不等式 / 不等式组", "微分方程", "解三角形",
-           "向量运算", "函数绘图", "平面几何", "立体几何", "积木编辑器", "缓存区", "存档 / 读档"].map(function (x) {
-            return '<div class="feature-chip"><b>✓</b>' + x + "</div>";
+        card(t("featureOverview"), '<div class="feature-grid">' +
+          ["featDerivative", "featIntegral", "featFuncAttr", "featTransform",
+           "featEquation", "featInequality", "featDE", "featTriangle",
+           "featVector", "featPlot", "feat2D", "feat3D", "featBlockly", "featCache", "featArchive"].map(function (k) {
+            return '<div class="feature-chip"><b>✓</b>' + t(k) + "</div>";
           }).join("") +
           "</div>") +
-        card("使用提示", "<ul>" +
-          "<li>表达式支持原生 SymPy 写法（<code>x**2+1</code>、<code>sin(x)</code>、<code>sqrt(x)</code>），" +
-          "或在表达式前加 <code>$</code> 直接输入 LaTeX（<code>$\\frac{x}{2}</code>），与桌面版一致。</li>" +
-          "<li>点击输入框会在其上方实时预览公式；点击 <b>ƒ</b> 打开页面底部的公式键盘。</li>" +
-          "<li>几何计算：参数用英文逗号分隔；已定义的几何对象直接填名称。</li>" +
-          "<li>所有结果由 MathJax 渲染；几何图形由服务端 matplotlib 生成。</li></ul>")
+        card(t("usageTips"), "<ul>" +
+          "<li>" + t("homeTip1") + "</li>" +
+          "<li>" + t("homeTip2") + "</li>" +
+          "<li>" + t("homeTip3") + "</li>" +
+          "<li>" + t("homeTip4") + "</li></ul>")
       );
     },
   },
@@ -523,24 +550,23 @@ const TABS = [
     html() {
       return (
         pageHead(t("函数定义")) +
-        card("定义函数", '<div class="row">' +
+        card(t("定义函数"), '<div class="row">' +
           formulaField("f_expr", t("expr"), "x**2+1", { value: "x**2", main: true }) +
           textField("f_name", t("name"), "f", "f") +
           textField("f_var", t("var"), "x", "x") +
           textField("f_domain", t("domain"), "Reals", "Reals") +
           "</div>" +
-          '<p class="field-hint">表达式支持 SymPy（如 <code>x**2</code>）或直接以 <code>$</code> 开头的 LaTeX（如 <code>$\\frac{x}{2}</code>）；' +
-          '定义域示例：<code>Reals</code>、<code>Interval(0,1)</code>、<code>FiniteSet(1,2,3)</code>。</p>' +
+          '<p class="field-hint">' + t("dingyiFieldHint") + "</p>" +
           exampleChips("f_expr", ["x**2", "sin(x)", "$\\frac{x}{2}", "sqrt(x)+1"]) +
           '<div style="margin-top:12px"><button class="primary" onclick="saveFunc()">' + t("save") + "</button></div>"
         ) +
         card(t("savedFuncs"), '<div id="fsList">' + funcListHtml() + "</div>") +
         funcUsageHint() +
-        card("函数属性", '<div class="row">' +
+        card(t("函数属性"), '<div class="row">' +
           formulaField("fa_expr", t("expr"), "x**2", { value: "x**2", main: true }) +
           textField("fa_var", t("var"), "x", "x") +
           textField("fa_domain", t("domain"), "Reals", "Reals") +
-          selectField("fa_attr", "属性", FUNC_ATTRS.map((x, i) => ({ v: i, t: x }))) +
+          selectField("fa_attr", t("属性"), FUNC_ATTRS.map((x, i) => ({ v: i, t: x }))) +
           "</div>" +
           exampleChips("fa_expr", ["x**2", "sin(x)", "$\\frac{x}{2}"]) +
           '<div style="margin-top:12px">' + computeBtn() +
@@ -570,10 +596,10 @@ const TABS = [
         card("", '<div class="row">' +
           formulaField("d_expr", t("expr"), "sin(x)", { value: "sin(x)", main: true }) +
           textField("d_var", t("var"), "x", "x") +
-          numField("d_order", "阶数", "1", "1") +
-          formulaField("d_point", "在某点(可空)", "0", { cache: false }) +
-          checkboxField("d_yin", "隐函数求导", false) +
-          textField("d_yinvar", "隐函数变量", "t", "t") +
+          numField("d_order", t("阶数"), "1", "1") +
+          formulaField("d_point", t("在某点(可空)"), "0", { cache: false }) +
+          checkboxField("d_yin", t("隐函数求导"), false) +
+          textField("d_yinvar", t("隐函数变量"), "t", "t") +
           "</div>" + exampleChips("d_expr", ["sin(x)", "x**2", "exp(x)", "log(x)"]) +
           '<div style=margin-top:12px>' + computeBtn() + "</div>" +
           '<div class="result" id="d_res"></div>'
@@ -604,9 +630,9 @@ const TABS = [
         card("", '<div class="row">' +
           formulaField("i_expr", t("expr"), "x**2", { value: "x**2", main: true }) +
           textField("i_var", t("var"), "x", "x") +
-          checkboxField("i_def", "定积分", false) +
-          formulaField("i_a", "下限", "0", { cache: false }) +
-          formulaField("i_b", "上限", "1", { cache: false }) +
+          checkboxField("i_def", t("定积分"), false) +
+          formulaField("i_a", t("下限"), "0", { cache: false }) +
+          formulaField("i_b", t("上限"), "1", { cache: false }) +
           "</div>" + exampleChips("i_expr", ["x**2", "sin(x)", "1/x", "exp(x)"]) +
           '<div style=margin-top:12px>' + computeBtn() + "</div>" +
           '<div class="result" id="i_res"></div>'
@@ -637,9 +663,9 @@ const TABS = [
         card("", '<div class="row">' +
           formulaField("b_expr", t("expr"), "(x+1)**2", { value: "(x+1)**2", main: true }) +
           selectField("b_method", t("options"), m) +
-          formulaField("b_zhuyuan", "主元(可空)", "x", { cache: false }) +
-          formulaField("b_huanyuan", "换元-新元(可空)", "t", { cache: false }) +
-          formulaField("b_huayuanshi", "换元-原式(可空)", "x", { cache: false }) +
+          formulaField("b_zhuyuan", t("主元(可空)"), "x", { cache: false }) +
+          formulaField("b_huanyuan", t("换元-新元(可空)"), "t", { cache: false }) +
+          formulaField("b_huayuanshi", t("换元-原式(可空)"), "x", { cache: false }) +
           "</div>" + exampleChips("b_expr", ["(x+1)**2", "x**2-1", "sin(x)**2+cos(x)**2"]) +
           '<div style=margin-top:12px>' + computeBtn() + "</div>" +
           '<div class="result" id="b_res"></div>'
@@ -667,14 +693,14 @@ const TABS = [
       return (
         pageHead(t("方程")) +
         card("", '<div class="row">' +
-          formulaField("e_lhs", "左边", "x**2-1", { value: "x**2-1", main: true }) +
-          formulaField("e_rhs", "右边", "0", { value: "0" }) +
+          formulaField("e_lhs", t("左边"), "x**2-1", { value: "x**2-1", main: true }) +
+          formulaField("e_rhs", t("右边"), "0", { value: "0" }) +
           textField("e_var", t("var"), "x", "x") +
           selectField("e_domain", t("domain"), [{ v: "Reals", t: "Reals" }, { v: "Complexes", t: "Complexes" }], "Reals") +
-          checkboxField("e_de", "微分方程", false) +
+          checkboxField("e_de", t("微分方程"), false) +
           "</div>" +
           exampleChips("e_lhs", ["x**2-1", "x**2-4", "sin(x)-1"]) +
-          '<p class="field-hint">普通方程直接输入表达式；微分方程请用 <code>f(x).diff(x)</code> 表示导数，例如左式 <code>f(x).diff(x)</code>、右式 <code>f(x)+1</code>。</p>' +
+          '<p class="field-hint">' + t("eqFieldHint") + "</p>" +
           '<div style=margin-top:12px>' + computeBtn() + "</div>" +
           '<div class="result" id="e_res"></div>'
         ) +
@@ -700,9 +726,9 @@ const TABS = [
     html() {
       return (
         '<div class="page-head"><h1>' + t("方程组") + "</h1></div>" +
-        card("方程列表", '<div id="sysEqs"></div><button class="ghost" onclick="addSysEq()">+ ' + t("add") + "</button>") +
+        card(t("方程列表"), '<div id="sysEqs"></div><button class="ghost" onclick="addSysEq()">+ ' + t("add") + "</button>") +
         card("", '<div class="row">' +
-          textField("sys_vars", "主元(逗号分隔)", "x,y") +
+          textField("sys_vars", t("主元(逗号分隔)"), "x,y") +
           "</div><div style=margin-top:12px>" + computeBtn() + "</div>" +
           '<div class="result" id="sys_res"></div>'
         )
@@ -729,9 +755,9 @@ const TABS = [
       return (
         pageHead(t("不等式")) +
         card("", '<div class="row">' +
-          formulaField("n_lhs", "左边", "x**2-1", { value: "x**2-1", main: true }) +
-          selectField("n_op", "关系", ops, "≥") +
-          formulaField("n_rhs", "右边", "0", { value: "0" }) +
+          formulaField("n_lhs", t("左边"), "x**2-1", { value: "x**2-1", main: true }) +
+          selectField("n_op", t("关系"), ops, "≥") +
+          formulaField("n_rhs", t("右边"), "0", { value: "0" }) +
           textField("n_var", t("var"), "x") +
           selectField("n_domain", t("domain"), [{ v: "Reals", t: "Reals" }, { v: "Complexes", t: "Complexes" }], "Reals") +
           "</div>" +
@@ -766,15 +792,15 @@ const TABS = [
       if (!STATE.rels.length) rels = '<p class="hint">' + t("noData") + "</p>";
       return (
         pageHead(t("不等式组")) +
-        card("添加不等式", '<div class="row">' +
-          formulaField("nz_lhs", "左边", "x", { value: "x", main: true }) +
-          selectField("nz_op", "关系", INEQ_OPS.map((o) => ({ v: o, t: o })), "≥") +
-          formulaField("nz_rhs", "右边", "0", { value: "0" }) +
+        card(t("添加不等式"), '<div class="row">' +
+          formulaField("nz_lhs", t("左边"), "x", { value: "x", main: true }) +
+          selectField("nz_op", t("关系"), INEQ_OPS.map((o) => ({ v: o, t: o })), "≥") +
+          formulaField("nz_rhs", t("右边"), "0", { value: "0" }) +
           "</div><div style=margin-top:12px><button class=\"primary\" onclick=\"saveRel()\">" + t("save") + "</button></div>"
         ) +
-        card("已添加不等式", '<div id="relList">' + rels + "</div>") +
-        card("求解", '<div class="row">' + textField("nz_var", t("var"), "x") + "</div>" +
-          '<div style=margin-top:12px>' + computeBtn("求解不等式组") + "</div>" +
+        card(t("已添加不等式"), '<div id="relList">' + rels + "</div>") +
+        card(t("求解"), '<div class="row">' + textField("nz_var", t("var"), "x") + "</div>" +
+          '<div style=margin-top:12px>' + computeBtn(t("求解不等式组")) + "</div>" +
           '<div class="result" id="nz_res"></div>'
         )
       );
@@ -790,7 +816,7 @@ const TABS = [
 
   // -------- 函数计算 --------
   {
-    id: "jisuan", zh: "函数计算", en: "Evaluate", icon: "∑", group: "calc",
+    id: "jisuan", zh: "函数计算", en: "Calculate", icon: "∑", group: "calc",
     html() {
       const eng = CALC_ENGINES.map((x, i) => ({ v: i, t: x }));
       return (
@@ -798,7 +824,7 @@ const TABS = [
         card("", '<div class="row">' +
           formulaField("c_expr", t("expr"), "sqrt(2)+pi", { value: "sqrt(2)+pi", main: true }) +
           selectField("c_engine", t("options"), eng) +
-          numField("c_prec", "精度(小数位)", "16", "16") +
+          numField("c_prec", t("精度(小数位)"), "16", "16") +
           "</div>" +
           exampleChips("c_expr", ["sqrt(2)+pi", "2**10", "log(8,2)", "$\\frac{1}{3}"]) +
           '<div style=margin-top:12px>' + computeBtn() + "</div>" +
@@ -832,7 +858,7 @@ const TABS = [
       for (let i = 0; i < 3; i++) {
         rows +=
           '<div class="row" style="margin-bottom:10px">' +
-          selectField("t_type" + i, "已知项", TRIANGLE_CONDS.map((x, j) => ({ v: j + 1, t: x }))) +
+          selectField("t_type" + i, t("已知项"), TRIANGLE_CONDS.map((x, j) => ({ v: j + 1, t: x }))) +
           formulaField("t_val" + i, t("expr"), "30", { cache: false, value: defVals[i] }) +
           "</div>";
       }
@@ -868,25 +894,25 @@ const TABS = [
       const ops = VEC_OPS;
       return (
         pageHead(t("向量")) +
-        card("定义向量", '<div class="row">' +
+        card(t("定义向量"), '<div class="row">' +
           textField("v_name", t("name"), "a", "a") +
-          formulaField("v_x", "x 分量", "1", { value: "1" }) +
-          formulaField("v_y", "y 分量", "2", { value: "2" }) +
+          formulaField("v_x", t("x 分量"), "1", { value: "1" }) +
+          formulaField("v_y", t("y 分量"), "2", { value: "2" }) +
           "</div><div style=margin-top:12px><button class=\"primary\" onclick=\"saveVec()\">" + t("save") + "</button></div>"
         ) +
         card(t("savedVecs"), '<div id="vsList">' + vs + "</div>") +
-        card("向量运算", '<div class="row">' +
+        card(t("向量运算"), '<div class="row">' +
           selectField("v_op", t("options"), ops) +
-          selectField("v_v1", "向量1", STATE.vs.map((n) => ({ v: n, t: n })), "") +
-          selectField("v_v2", "向量2", STATE.vs.map((n) => ({ v: n, t: n })), "") +
-          formulaField("v_scalar", "数乘系数", "2", { cache: false }) +
+          selectField("v_v1", t("向量1"), STATE.vs.map((n) => ({ v: n, t: n })), "") +
+          selectField("v_v2", t("向量2"), STATE.vs.map((n) => ({ v: n, t: n })), "") +
+          formulaField("v_scalar", t("数乘系数"), "2", { cache: false }) +
           "</div><div style=margin-top:12px>" + computeBtn() + "</div>" +
           '<div class="result" id="v_res"></div>'
         ) +
-        card("向量属性", '<div class="row">' +
+        card(t("向量属性"), '<div class="row">' +
           selectField("va_name", t("name"), STATE.vs.map((n) => ({ v: n, t: n })), "") +
           selectField("va_attr", t("options"), VEC_ATTRS.map((x, i) => ({ v: i, t: x }))) +
-          "</div><div style=margin-top:12px><button class=\"primary\" id=\"btnAttr\">查询</button></div>" +
+          "</div><div style=margin-top:12px><button class=\"primary\" id=\"btnAttr\">" + t("查询") + "</button></div>" +
           '<div class="result" id="va_res"></div>'
         )
       );
@@ -911,13 +937,13 @@ const TABS = [
     html() {
       return (
         pageHead(t("函数绘图")) +
-        card("函数列表", '<div id="plotItems"></div><button class="ghost" onclick="addPlotItem()">+ ' + t("add") + "</button>") +
+        card(t("函数列表"), '<div id="plotItems"></div><button class="ghost" onclick="addPlotItem()">+ ' + t("add") + "</button>") +
         card(t("options"), '<div class="row">' +
-          checkboxField("p_axis", "显示坐标轴", true) +
-          checkboxField("p_grid", "显示网格", true) +
-          formulaField("p_xlim", "x 范围(可空,逗号)", "-10,10", { cache: false, value: "-10,10" }) +
-          formulaField("p_ylim", "y 范围(可空,逗号)", "", { cache: false }) +
-          "</div><div style=margin-top:12px>" + computeBtn("绘图") + "</div>" +
+          checkboxField("p_axis", t("显示坐标轴"), true) +
+          checkboxField("p_grid", t("显示网格"), true) +
+          formulaField("p_xlim", t("x 范围(可空,逗号)"), "-10,10", { cache: false, value: "-10,10" }) +
+          formulaField("p_ylim", t("y 范围(可空,逗号)"), "", { cache: false }) +
+          "</div><div style=margin-top:12px>" + computeBtn(t("绘图")) + "</div>" +
           '<div id="p_img"></div>'
         )
       );
@@ -956,7 +982,7 @@ const TABS = [
       const m = PLANE_DEF_METHODS.map((x, i) => ({ v: i + 1, t: x }));
       return (
         pageHead(t("平面几何定义")) +
-        card("定义对象", '<div class="row">' +
+        card(t("定义对象"), '<div class="row">' +
           textField("pj_name", t("name"), "A", "A") +
           selectField("pj_method", t("options"), m) +
           textField("pj_params", t("params"), "0,0") +
@@ -1006,7 +1032,7 @@ const TABS = [
       const m = SOLID_DEF_METHODS.map((x, i) => ({ v: i + 1, t: x }));
       return (
         pageHead(t("立体几何定义")) +
-        card("定义对象", '<div class="row">' +
+        card(t("定义对象"), '<div class="row">' +
           textField("lj_name", t("name"), "A", "A") +
           selectField("lj_method", t("options"), m) +
           textField("lj_params", t("params"), "0,0,0") +
@@ -1055,7 +1081,7 @@ const TABS = [
       return (
         pageHead(t("平面几何绘图")) +
         card(t("selectObjects"), '<div class="checkbox-list" id="pj_boxes">' + boxes + "</div>") +
-        '<div style=margin-top:12px>' + computeBtn("绘图") + "</div>" +
+        '<div style=margin-top:12px>' + computeBtn(t("绘图")) + "</div>" +
         '<div id="pj_img"></div>'
       );
     },
@@ -1081,7 +1107,7 @@ const TABS = [
       return (
         pageHead(t("立体几何绘图")) +
         card(t("selectObjects"), '<div class="checkbox-list" id="lj_boxes">' + boxes + "</div>") +
-        '<div style=margin-top:12px>' + computeBtn("绘图") + "</div>" +
+        '<div style=margin-top:12px>' + computeBtn(t("绘图")) + "</div>" +
         '<div id="lj_img"></div>'
       );
     },
@@ -1110,7 +1136,7 @@ const TABS = [
       if (!STATE.cache.length) rows = '<p class="hint">' + t("noData") + "</p>";
       return (
         '<div class="page-head"><h1>' + t("缓存区") + "</h1><p>" +
-        "各页面输入框旁的“加入缓存”按钮可将常用表达式暂存于此，随时复制 / 插入。" + "</p></div>" +
+        t("cacheDesc") + "</p></div>" +
         card("", '<div id="cacheList">' + rows + "</div>" +
           '<div style=margin-top:12px><button class="ghost danger" onclick="clearCache()">' + t("clearCache") + "</button></div>")
       );
@@ -1127,16 +1153,16 @@ const TABS = [
     html() {
       return (
         '<div class="page-head"><h1>' + t("设置") + "</h1></div>" +
-        card("界面", '<div class="row">' +
+        card(t("uiGroup"), '<div class="row">' +
           selectField("s_theme", t("theme"), [{ v: "light", t: t("light") }, { v: "dark", t: t("dark") }], THEME) +
           selectField("s_lang", t("language"), [{ v: "zh", t: "中文" }, { v: "en", t: "English" }], LANG) +
           "</div><p class='hint'>" + t("webVersion") + "</p>") +
-        card("存档 / 加载（.cca / JSON）", '<div class="row">' +
-          '<button class="primary" onclick="saveArchive()">' + t("导出存档") + "</button> " +
-          '<button class="ghost" onclick="$(\'loadFile\').click()">' + t("导入存档") + "</button>" +
+        card(t("存档 / 加载（.cca / JSON）"), '<div class="row">' +
+          '<button class="primary" onclick="saveArchive()">' + t("exportArchive") + "</button> " +
+          '<button class="ghost" onclick="$(\'loadFile\').click()">' + t("importArchive") + "</button>" +
           '<input type="file" id="loadFile" accept=".json,.cca,application/json" style="display:none" onchange="loadArchive(this)">' +
           "</div><p class='hint'>" + t("archiveHint") + "</p>") +
-        card("相关链接", '<div class="home-links" style="justify-content:flex-start">' +
+        card(t("相关链接"), '<div class="home-links" style="justify-content:flex-start">' +
           '<a href="https://github.com/limingkang12345/CalculusCalculator" target="_blank" rel="noopener">GitHub</a>' +
           '<a href="https://limingkang12345.github.io/CalculusCalculator/" target="_blank" rel="noopener">' + t("onlineDocs") + "</a>" +
           '<a href="https://pypi.org/project/CalculusCalculator/" target="_blank" rel="noopener">PyPI</a>' +
@@ -1144,8 +1170,8 @@ const TABS = [
       );
     },
     init() {
-      $("s_theme").onchange = () => { THEME = $("s_theme").value; applyTheme(); localStorage.setItem("theme", THEME); };
-      $("s_lang").onchange = () => { LANG = $("s_lang").value; localStorage.setItem("lang", LANG); renderNav(); loadTab(currentTab); localizeKB(); };
+      $("s_theme").onchange = () => { THEME = $("s_theme").value; applyTheme(); localStorage.setItem("theme", THEME); syncBlocklyTheme(); };
+      $("s_lang").onchange = () => { LANG = $("s_lang").value; localStorage.setItem("lang", LANG); renderNav(); loadTab(currentTab); localizeKB(); syncBlocklyLang(); };
     },
   },
 
@@ -1155,15 +1181,15 @@ const TABS = [
     html() {
       return (
         '<div class="page-head"><h1>' + t("help") + "</h1></div>" +
-        card("输入说明", "<ul>" +
-          "<li>表达式支持常见数学写法，如 <code>x**2+1</code>、<code>sin(x)</code>、<code>sqrt(x)</code>、<code>e**x</code>、<code>log(x)</code>。</li>" +
-          "<li><b>LaTeX 直接输入</b>：在表达式前加 <code>$</code> 即可输入 LaTeX（如 <code>$\\frac{x}{2}</code>），系统自动解析为 SymPy 表达式 —— 与桌面版一致。</li>" +
-          "<li>点击任意输入框会实时浮现公式预览；点击 <b>ƒ</b> 按钮打开页面底部的 MathLive 公式键盘，点“插入”后自动转换为原生 SymPy 表达式填入输入框。</li>" +
-          "<li>变量默认 <code>x</code>，可自定义。</li>" +
-          "<li>几何计算：参数用英文逗号分隔；已定义的几何对象（点/直线/圆/三角形/平面等）直接填写其名称。</li>" +
-          "<li>所有结果由 MathJax 渲染；几何图形由服务端 matplotlib 生成。</li></ul>") +
-        card("数据", "<p>函数定义、向量、方程/不等式、几何对象、缓存均保存在浏览器会话中（服务端内存）。可使用“设置 → 存档/加载”以 JSON 形式导出与导入。</p>") +
-        card("相关链接", '<div class="home-links" style="justify-content:flex-start">' +
+        card(t("输入说明"), "<ul>" +
+          "<li>" + t("helpLi1") + "</li>" +
+          "<li>" + t("helpLi2") + "</li>" +
+          "<li>" + t("helpLi3") + "</li>" +
+          "<li>" + t("helpLi4") + "</li>" +
+          "<li>" + t("helpLi5") + "</li>" +
+          "<li>" + t("helpLi6") + "</li></ul>") +
+        card(t("数据"), "<p>" + t("dataDesc") + "</p>") +
+        card(t("相关链接"), '<div class="home-links" style="justify-content:flex-start">' +
           '<a href="https://github.com/limingkang12345/CalculusCalculator" target="_blank" rel="noopener">GitHub</a>' +
           '<a href="https://limingkang12345.github.io/CalculusCalculator/" target="_blank" rel="noopener">' + t("onlineDocs") + "</a>" +
           '<a href="https://pypi.org/project/CalculusCalculator/" target="_blank" rel="noopener">PyPI</a>' +
@@ -1268,7 +1294,18 @@ function clearCache() {
 }
 function saveArchive() {
   fetch("/api/save").then((r) => {
-    const blobUrl = URL.createObjectURL(r.blob());
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  }).then((data) => {
+    // 合并积木编辑器状态（保存在浏览器 localStorage，服务端不感知）
+    try {
+      const bl = localStorage.getItem("blocklyState");
+      if (bl) {
+        try { data.blockly = JSON.parse(bl); } catch (e) { data.blockly = bl; }
+      }
+    } catch (e) {}
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = blobUrl;
     a.download = "calc_save.cca";
@@ -1287,8 +1324,22 @@ function loadArchive(input) {
     try {
       const data = JSON.parse(reader.result);
       apiPost("/api/load", data).then((r) => {
-        toast(r.ok ? t("success") : r.error);
-        if (r.ok) refreshState();
+        if (!r.ok) { toast(r.error || t("error")); return; }
+        // 恢复积木编辑器状态到 localStorage（兼容 Web 版 {workspace, inputs} 与桌面版 {标签名: JSON字符串}）
+        if (data.blockly) {
+          try {
+            let bl = data.blockly;
+            if (typeof bl === "object" && !bl.workspace) {
+              const first = Object.values(bl)[0];
+              if (typeof first === "string") { try { bl = JSON.parse(first); } catch (e) {} }
+            }
+            if (bl && bl.workspace) localStorage.setItem("blocklyState", JSON.stringify(bl));
+            if (bl && bl.inputs) localStorage.setItem("blocklyInputs", JSON.stringify(bl.inputs));
+          } catch (e) {}
+        }
+        refreshState();
+        loadTab(currentTab); // 重新渲染当前页，显示加载后的数据
+        toast(t("success"));
       });
     } catch (e) { toast(t("error") + ": " + e.message); }
   };
@@ -1318,9 +1369,9 @@ function addPlotItem() {
   div.innerHTML =
     '<input type="text" class="pe" value="x**2" placeholder="x**2" style="flex:2">' +
     '<input type="text" class="pv" value="x" placeholder="x" style="flex:1">' +
-    '<input type="text" class="pa" value="-10" placeholder="下限" style="flex:1">' +
-    '<input type="text" class="pb" value="10" placeholder="上限" style="flex:1">' +
-    '<input type="text" class="pc" value="" placeholder="#色" style="flex:1">' +
+    '<input type="text" class="pa" value="-10" placeholder="' + t("下限") + '" style="flex:1">' +
+    '<input type="text" class="pb" value="10" placeholder="' + t("上限") + '" style="flex:1">' +
+    '<input type="text" class="pc" value="" placeholder="#' + t("color") + '" style="flex:1">' +
     '<button class="ghost danger" onclick="this.parentNode.remove()">' + t("remove") + "</button>";
   $("plotItems").appendChild(div);
 }
@@ -1395,12 +1446,14 @@ function boot() {
   $("themeBtn").onclick = () => {
     THEME = THEME === "dark" ? "light" : "dark";
     applyTheme(); localStorage.setItem("theme", THEME);
+    syncBlocklyTheme();
   };
   $("langBtn").onclick = () => {
     LANG = LANG === "en" ? "zh" : "en";
     localStorage.setItem("lang", LANG);
     $("langBtn").textContent = LANG === "en" ? "中文" : "EN";
     renderNav(); loadTab(currentTab); localizeKB();
+    syncBlocklyLang();
   };
   $("langBtn").textContent = LANG === "en" ? "中文" : "EN";
   $("menuBtn").onclick = () => document.body.classList.toggle("sidebar-open");
@@ -1433,7 +1486,7 @@ function boot() {
   if (mf) {
     mf.addEventListener("input", () => {
       const out = $("#mathkbLatex");
-      if (out) out.textContent = mf.value || "（空）";
+      if (out) out.textContent = mf.value || t("empty");
     });
   }
   localizeKB();
