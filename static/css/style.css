@@ -35,6 +35,76 @@ body.dark {
   --shadow-lg: 0 4px 10px rgba(0,0,0,.45), 0 16px 48px rgba(0,0,0,.5);
 }
 
+/* ============ 深色模式组件适配 ============ */
+body.dark .ex-chips-label { color: #98a2b3; }
+body.dark .ex-chip {
+  border-color: #343b49;
+  background: #262b37;
+  color: #e7eaf0;
+}
+body.dark .ex-chip:hover { background: #2f3644; border-color: #5b8cff; color: #7ea6ff; }
+
+body.dark .field-hint { color: #98a2b3; }
+body.dark .field-hint code {
+  background: #303744;
+  border-color: #343b49;
+  color: #e7eaf0;
+}
+
+body.dark .hint-box { color: #c9d1dd; }
+body.dark .hint-box > summary { color: #7ea6ff; }
+body.dark .hint-box > summary::before { color: #5b8cff; }
+body.dark .hint-box .hint-body {
+  background: #262b37;
+  border-color: #343b49;
+  color: #c9d1dd;
+}
+body.dark .hint-box .hint-body code {
+  background: #303744;
+  border-color: #343b49;
+  color: #b8a5ff;
+}
+body.dark .hint-foot { color: #6b7686; }
+body.dark .hint-foot a { color: #7ea6ff; }
+
+body.dark .home-hero {
+  background-image: radial-gradient(circle at 15% 20%, rgba(255,255,255,.08) 0, transparent 40%),
+                    radial-gradient(circle at 85% 80%, rgba(255,255,255,.06) 0, transparent 40%),
+                    linear-gradient(135deg, #7c3aed, #a855f7);
+}
+body.dark .home-links a {
+  color: #7ea6ff;
+  background: var(--panel);
+}
+
+body.dark .home-stat {
+  background: rgba(255,255,255,.08);
+  border-color: rgba(255,255,255,.15);
+  color: #e7eaf0;
+}
+
+body.dark .img-result img {
+  background: #1d212b;
+}
+
+body.dark .cache-select {
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+body.dark .checkbox-list label {
+  background: var(--panel-2);
+}
+
+body.dark .result {
+  background: var(--panel-2);
+}
+
+body.dark .mathkb-foot code {
+  background: var(--panel-2);
+  color: var(--text);
+}
+
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
 body {
