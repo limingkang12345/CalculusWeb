@@ -1294,7 +1294,18 @@ function clearCache() {
 }
 function saveArchive() {
   fetch("/api/save").then((r) => {
-    const blobUrl = URL.createObjectURL(r.blob());
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  }).then((data) => {
+    // 合并积木编辑器状态（保存在浏览器 localStorage，服务端不感知）
+    try {
+      const bl = localStorage.getItem("blocklyState");
+      if (bl) {
+        try { data.blockly = JSON.parse(bl); } catch (e) { data.blockly = bl; }
+      }
+    } catch (e) {}
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = blobUrl;
     a.download = "calc_save.cca";
@@ -1313,8 +1324,22 @@ function loadArchive(input) {
     try {
       const data = JSON.parse(reader.result);
       apiPost("/api/load", data).then((r) => {
-        toast(r.ok ? t("success") : r.error);
-        if (r.ok) refreshState();
+        if (!r.ok) { toast(r.error || t("error")); return; }
+        // 恢复积木编辑器状态到 localStorage（兼容 Web 版 {workspace, inputs} 与桌面版 {标签名: JSON字符串}）
+        if (data.blockly) {
+          try {
+            let bl = data.blockly;
+            if (typeof bl === "object" && !bl.workspace) {
+              const first = Object.values(bl)[0];
+              if (typeof first === "string") { try { bl = JSON.parse(first); } catch (e) {} }
+            }
+            if (bl && bl.workspace) localStorage.setItem("blocklyState", JSON.stringify(bl));
+            if (bl && bl.inputs) localStorage.setItem("blocklyInputs", JSON.stringify(bl.inputs));
+          } catch (e) {}
+        }
+        refreshState();
+        loadTab(currentTab); // 重新渲染当前页，显示加载后的数据
+        toast(t("success"));
       });
     } catch (e) { toast(t("error") + ": " + e.message); }
   };

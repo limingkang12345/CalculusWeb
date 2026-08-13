@@ -65,6 +65,9 @@ def sympify(expr, fs, locals = None, is_simplify = False, is_rationalize = False
     # is_rationalize(bool):是否对结果执行分母有理化
     # return:处理后的表达式
 
+    if fs is None:
+        fs = {}
+
     # 处理 expr 已经是 sympy 表达式对象的情况（例如 _py_func_value 在 arg 为空
     # 时直接返回 sympy 表达式）。对其做下标访问或字符串解析都会出错，
     # 因此这里直接按需求后处理后返回。

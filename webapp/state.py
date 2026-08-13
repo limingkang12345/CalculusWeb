@@ -49,15 +49,63 @@ class CalcState:
         self.vs = dict(data.get("vs", {}))
         self.pjs = {}
         self.ljs = {}
-        self.cache = list(data.get("cache", []))
+        # 缓存区：兼容 Web 版（[latex, text]）与桌面版（纯字符串列表）两种格式
+        self.cache = []
+        for item in data.get("cache", []):
+            if isinstance(item, (list, tuple)):
+                a = str(item[0]) if len(item) > 0 else ""
+                b = str(item[1]) if len(item) > 1 else a
+                self.cache.append([a, b])
+            else:
+                s = str(item)
+                self.cache.append([s, s])
         for k, v in data.get("fs", {}).items():
             self.fs[k] = [v[0], v[1], v[2], v[3]]  # 表达式以字符串保存，计算时再解析
-        for k, v in data.get("eqs", {}).items():
-            self.eqs[k] = Eq(S_latex(v[0]), S_latex(v[1]))
-        for k, v in data.get("rels", {}).items():
-            self.rels[k] = Rel(S_latex(v[0]), S_latex(v[1]), v[2])
-        # 平面/立体几何对象含 sympy 几何对象，无法纯文本还原，仅保留可重建的参数较复杂，
-        # 这里采用简化处理：不跨会话保存几何对象（与桌面“保存/加载”仅保存函数定义一致）。
+        # 方程：兼容 Web 版（{key: [lhs, rhs, op]}）与桌面版（Eq 字符串列表）
+        eqs = data.get("eqs", {})
+        if isinstance(eqs, dict):
+            for k, v in eqs.items():
+                try:
+                    self.eqs[k] = Eq(S_latex(v[0]), S_latex(v[1]))
+                except Exception:
+                    pass
+        elif isinstance(eqs, list):
+            for i, v in enumerate(eqs):
+                try:
+                    self.eqs[str(i)] = S_latex(v) if isinstance(v, str) else Eq(S_latex(v[0]), S_latex(v[1]))
+                except Exception:
+                    pass
+        # 不等式：兼容两种格式
+        rels = data.get("rels", {})
+        if isinstance(rels, dict):
+            for k, v in rels.items():
+                try:
+                    self.rels[k] = Rel(S_latex(v[0]), S_latex(v[1]), v[2])
+                except Exception:
+                    pass
+        elif isinstance(rels, list):
+            for i, v in enumerate(rels):
+                try:
+                    self.rels[str(i)] = S_latex(v) if isinstance(v, str) else Rel(S_latex(v[0]), S_latex(v[1]), v[2])
+                except Exception:
+                    pass
+        # 平面/立体几何对象：Web 版仅保存类别；桌面版含 sympy 字符串，可尝试还原
+        for k, v in data.get("pjs", {}).items():
+            if isinstance(v, (list, tuple)) and len(v) > 1:
+                try:
+                    self.pjs[k] = [v[0], S_latex(v[1])]
+                    continue
+                except Exception:
+                    pass
+            self.pjs[k] = [v[0]]
+        for k, v in data.get("ljs", {}).items():
+            if isinstance(v, (list, tuple)) and len(v) > 1:
+                try:
+                    self.ljs[k] = [v[0], S_latex(v[1])]
+                    continue
+                except Exception:
+                    pass
+            self.ljs[k] = [v[0]]
 
 
 def latex_safe(expr):
@@ -70,7 +118,17 @@ def latex_safe(expr):
 
 def S_latex(text):
     from core.sympify import sympify
-    return sympify(text, None)
+    from sympy import Basic as SympyBasic
+    if isinstance(text, SympyBasic):
+        return text
+    r = sympify(text, {})
+    if isinstance(r, str) and text and text[0] != "$":
+        # sympify 无法解析（如 Web 版存档中的 LaTeX 字符串），尝试 latex2sympy
+        try:
+            return sympify("$" + text, {})
+        except Exception:
+            pass
+    return r
 
 
 _STATES = {}
